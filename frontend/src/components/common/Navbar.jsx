@@ -41,14 +41,14 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Nav Links */}
-          <div className="hidden xl:flex items-center gap-0.5 xl:gap-1 h-full">
+          <div className="hidden lg:flex items-center gap-0.5 lg:gap-1 h-full">
             {MAIN_LINKS.map(({ path, label, icon, hasDropdown, iconClass, iconStyle }) => {
               const isActive = location.pathname === path || (path === '/hotels' && location.pathname.startsWith('/hotels')) || (path === '/flights' && location.pathname === '/');
               return (
                 <Link
                   key={path}
                   to={path}
-                  className={`text-[15px] xl:text-[16px] font-satoshi font-medium transition-all no-underline flex items-center gap-[5px] px-[8px] xl:px-[12px] h-full relative whitespace-nowrap shrink-0 nav-link ${isActive
+                  className={`text-[13px] lg:text-[14px] xl:text-[15px] font-satoshi font-medium transition-all no-underline flex items-center gap-[4px] px-[6px] lg:px-[8px] xl:px-[12px] h-full relative whitespace-nowrap shrink-0 nav-link ${isActive
                       ? 'text-[#ef3535]'
                       : 'text-[#3c3c3c] hover:text-[#ef3535]'
                     }`}
@@ -74,7 +74,7 @@ export default function Navbar() {
               );
             })}
 
-            <div className="h-[18px] w-px bg-gray-300 mx-2 xl:mx-3 shrink-0"></div>
+            <div className="h-[18px] w-px bg-gray-300 mx-1.5 lg:mx-2 xl:mx-3 shrink-0"></div>
 
             {SECONDARY_LINKS.map(({ path, label, icon, isLucide, iconClass }) => {
               const isActive = location.pathname === path;
@@ -83,7 +83,7 @@ export default function Navbar() {
                 <Link
                   key={path}
                   to={path}
-                  className={`text-[15px] xl:text-[16px] font-satoshi font-medium transition-all no-underline flex items-center gap-[5px] px-[8px] xl:px-[12px] h-full relative whitespace-nowrap shrink-0 nav-link ${isActive
+                  className={`text-[13px] lg:text-[14px] xl:text-[15px] font-satoshi font-medium transition-all no-underline flex items-center gap-[4px] px-[6px] lg:px-[8px] xl:px-[12px] h-full relative whitespace-nowrap shrink-0 nav-link ${isActive
                       ? 'text-[#ef3535]'
                       : 'text-[#3c3c3c] hover:text-[#ef3535]'
                     }`}
@@ -107,10 +107,10 @@ export default function Navbar() {
           </div>
 
           {/* Right Side */}
-          <div className="hidden xl:flex items-center gap-2.5 xl:gap-4 shrink-0">
+          <div className="hidden lg:flex items-center gap-2 lg:gap-2.5 xl:gap-4 shrink-0">
             {user ? (
-              <div className="flex items-center gap-3">
-                <span className="text-[14px] xl:text-[15px] font-satoshi font-bold text-gray-800 whitespace-nowrap">
+              <div className="flex items-center gap-2 lg:gap-3">
+                <span className="text-[13px] lg:text-[14px] xl:text-[15px] font-satoshi font-bold text-gray-800 whitespace-nowrap">
                   Hi, {user.name || 'Traveler'}
                 </span>
                 <button
@@ -124,15 +124,15 @@ export default function Navbar() {
               <>
                 <button
                   onClick={() => openAuthModal('signup')}
-                  className="bg-[#ef3535] text-white px-[16px] xl:px-[22px] py-[10px] rounded-[10px] text-[15px] xl:text-[17px] font-satoshi font-semibold hover:bg-red-600 transition-colors no-underline leading-none flex items-center justify-center h-[42px] xl:h-[46px] cursor-pointer border-none whitespace-nowrap"
+                  className="bg-[#ef3535] text-white px-[12px] lg:px-[16px] xl:px-[22px] py-[8px] lg:py-[10px] rounded-[10px] text-[13px] lg:text-[14px] xl:text-[16px] font-satoshi font-semibold hover:bg-red-600 transition-colors no-underline leading-none flex items-center justify-center h-[38px] lg:h-[42px] xl:h-[46px] cursor-pointer border-none whitespace-nowrap"
                 >
                   Sign Up Free
                 </button>
                 <button
                   onClick={() => openAuthModal('login')}
-                  className="text-[#3c3c3c] text-[15px] xl:text-[17px] font-satoshi font-medium px-[16px] xl:px-[22px] py-[10px] border border-gray-300 rounded-[10px] flex items-center gap-2 hover:bg-gray-50 transition-colors no-underline leading-none h-[42px] xl:h-[46px] cursor-pointer bg-white whitespace-nowrap"
+                  className="text-[#3c3c3c] text-[13px] lg:text-[14px] xl:text-[16px] font-satoshi font-medium px-[12px] lg:px-[16px] xl:px-[22px] py-[8px] lg:py-[10px] border border-gray-300 rounded-[10px] flex items-center gap-1.5 lg:gap-2 hover:bg-gray-50 transition-colors no-underline leading-none h-[38px] lg:h-[42px] xl:h-[46px] cursor-pointer bg-white whitespace-nowrap"
                 >
-                  <img src={iconUser} alt="User" className="w-[18px] h-[18px] object-contain opacity-80 shrink-0" />
+                  <img src={iconUser} alt="User" className="w-[16px] h-[16px] lg:w-[18px] lg:h-[18px] object-contain opacity-80 shrink-0" />
                   <span className="whitespace-nowrap">Login</span>
                 </button>
               </>
@@ -141,7 +141,7 @@ export default function Navbar() {
 
           {/* Mobile Hamburger */}
           <button
-            className="xl:hidden flex flex-col gap-1.5 p-2 bg-transparent border-none cursor-pointer"
+            className="lg:hidden flex flex-col gap-1.5 p-2 bg-transparent border-none cursor-pointer"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle menu"
           >
@@ -153,7 +153,7 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         {mobileOpen && (
-          <div className="xl:hidden bg-white border-t border-gray-100 px-6 py-4 space-y-1">
+          <div className="lg:hidden bg-white border-t border-gray-100 px-6 py-4 space-y-1">
             {[...MAIN_LINKS, ...SECONDARY_LINKS].map(({ path, label, icon, isLucide, iconClass }) => {
               const IconComp = isLucide ? icon : null;
               return (
