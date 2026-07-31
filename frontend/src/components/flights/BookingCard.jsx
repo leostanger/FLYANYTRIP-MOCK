@@ -191,7 +191,7 @@ function AirportPickerModal({ title, onSelect, onClose }) {
     <>
       <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
       <div
-        className="absolute left-0 top-full mt-3 lg:top-0 lg:mt-0 lg:left-[calc(100%+16px)] z-50 w-full lg:w-[380px] h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi"
+        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -362,7 +362,7 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
     <>
       <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
       <div
-        className="absolute left-0 top-full mt-3 lg:top-0 lg:mt-0 lg:left-[calc(100%+16px)] z-50 w-full lg:w-[380px] h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] p-5 flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi overflow-hidden"
+        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] p-5 flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-2.5 border-b border-[#e8e8e8] shrink-0">
@@ -458,7 +458,7 @@ function TravellersClassModal({ adults, setAdults, children, setChildren, cabinC
     <>
       <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
       <div
-        className="absolute left-0 top-full mt-3 lg:top-0 lg:mt-0 lg:left-[calc(100%+16px)] z-50 w-full lg:w-[380px] h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] p-5 flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi overflow-hidden"
+        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] p-5 flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-2.5 border-b border-[#e8e8e8] shrink-0">

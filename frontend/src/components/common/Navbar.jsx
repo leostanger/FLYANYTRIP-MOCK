@@ -41,7 +41,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Nav Links */}
-          <div className="hidden lg:flex items-center gap-0.5 xl:gap-1 h-full">
+          <div className="hidden xl:flex items-center gap-0.5 xl:gap-1 h-full">
             {MAIN_LINKS.map(({ path, label, icon, hasDropdown, iconClass, iconStyle }) => {
               const isActive = location.pathname === path || (path === '/hotels' && location.pathname.startsWith('/hotels')) || (path === '/flights' && location.pathname === '/');
               return (
@@ -107,7 +107,7 @@ export default function Navbar() {
           </div>
 
           {/* Right Side */}
-          <div className="hidden lg:flex items-center gap-2.5 xl:gap-4 shrink-0">
+          <div className="hidden xl:flex items-center gap-2.5 xl:gap-4 shrink-0">
             {user ? (
               <div className="flex items-center gap-3">
                 <span className="text-[14px] xl:text-[15px] font-satoshi font-bold text-gray-800 whitespace-nowrap">
@@ -141,7 +141,7 @@ export default function Navbar() {
 
           {/* Mobile Hamburger */}
           <button
-            className="lg:hidden flex flex-col gap-1.5 p-2 bg-transparent border-none cursor-pointer"
+            className="xl:hidden flex flex-col gap-1.5 p-2 bg-transparent border-none cursor-pointer"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle menu"
           >
@@ -153,7 +153,7 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         {mobileOpen && (
-          <div className="lg:hidden bg-white border-t border-gray-100 px-6 py-4 space-y-1">
+          <div className="xl:hidden bg-white border-t border-gray-100 px-6 py-4 space-y-1">
             {[...MAIN_LINKS, ...SECONDARY_LINKS].map(({ path, label, icon, isLucide, iconClass }) => {
               const IconComp = isLucide ? icon : null;
               return (
