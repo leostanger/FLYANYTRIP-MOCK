@@ -354,11 +354,8 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
         return `₹${p >= 1000 ? (p / 1000).toFixed(1) + 'k' : p}`
       }
     }
-    // Realistic price estimation based on origin/destination route
-    const basePrice = origin === 'DXB' || destination === 'DXB' ? 12500 : 4500
-    const variance = ((dayNum * 137 + (month + 1) * 31) % 1500) - 400
-    const finalP = basePrice + variance
-    return `₹${(finalP / 1000).toFixed(1)}k`
+    // No API data found for this date, do not show any mock price
+    return null
   }
 
   return (

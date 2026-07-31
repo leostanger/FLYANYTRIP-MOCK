@@ -35,55 +35,13 @@ const searchFlights = async (req, res, next) => {
     }
 
     if (!searchResults || !searchResults.flights || searchResults.flights.length === 0) {
-      console.warn('No flights returned from Adivaha. Serving mock fallback flights.');
-      const origin = searchParams.origin || 'DEL';
-      const destination = searchParams.destination || 'BOM';
-      searchResults = {
-        flights: [
-          {
-            id: 'mock_1',
-            type: 'flight',
-            airline: 'MockAir',
-            airlineCode: 'MA',
-            flight: 'MA-101',
-            from: origin,
-            to: destination,
-            time: '10:00 AM',
-            arrival: '12:00 PM',
-            dur: '2h',
-            stops: 0,
-            layover: '',
-            baggage: '15 Kgs',
-            cabinBaggage: '7 Kgs',
-            isRefundable: true,
-            seatsLeft: 5,
-            price: '5,500',
-            publishedPrice: '5,500',
-            class: 'Economy',
-          },
-          {
-            id: 'mock_2',
-            type: 'flight',
-            airline: 'TestJet',
-            airlineCode: 'TJ',
-            flight: 'TJ-202',
-            from: origin,
-            to: destination,
-            time: '04:00 PM',
-            arrival: '07:30 PM',
-            dur: '3h 30m',
-            stops: 1,
-            layover: '1 Stop at BLR',
-            baggage: '15 Kgs',
-            cabinBaggage: '7 Kgs',
-            isRefundable: false,
-            seatsLeft: 2,
-            price: '4,200',
-            publishedPrice: '4,200',
-            class: 'Economy',
-          }
-        ]
-      };
+      // No flights returned from Adivaha. Do not serve mock data.
+      return res.status(200).json({
+        success: true,
+        source: 'api',
+        data: { flights: [] },
+        message: 'No flights found for the given criteria.'
+      });
     }
 
     // Cache the result for subsequent similar searches
@@ -91,7 +49,7 @@ const searchFlights = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      source: 'api-or-mock',
+      source: 'api',
       data: { flights: searchResults.flights },
     });
   } catch (error) {
@@ -176,7 +134,13 @@ const getCalendarFare = async (req, res, next) => {
       return res.status(200).json({ success: true, source: 'cache', data: cached });
     }
 
-    const result = await adivahaService.getCalendarFare({ origin, destination, departureDate, cabinClass });
+    let result;
+    try {
+      result = await adivahaService.getCalendarFare({ origin, destination, departureDate, cabinClass });
+    } catch (apiError) {
+      console.warn('Adivaha Calendar Fare API failed/timed out. Serving empty fallback:', apiError.message);
+      result = { SearchResults: [] };
+    }
     
     // Check if response contains valid results - handle multiple possible response structures
     let fares = result?.responseData?.Response?.SearchResults ||

@@ -78,8 +78,8 @@ exports.confirmBooking = async (req, res, next) => {
             });
         }
 
-        const pnr = responseData?.PNR || (responseData?.BookingId ? String(responseData.BookingId) : null) || `ATP${Math.floor(100000 + Math.random() * 900000)}`;
-        const providerBookingId = responseData?.BookingId || Math.floor(100000 + Math.random() * 900000);
+        const pnr = responseData?.PNR || (responseData?.BookingId ? String(responseData.BookingId) : null);
+        const providerBookingId = responseData?.BookingId || null;
         const ticketStatus = responseData?.TicketStatus || (isLCC ? 'TICKETED' : 'BOOKED');
 
         // 2. Find or Create User if not logged in
