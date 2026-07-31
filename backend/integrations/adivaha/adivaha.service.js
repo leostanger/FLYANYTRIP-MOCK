@@ -11,6 +11,7 @@ const API_KEY = process.env.ADIVAHA_API_KEY;
 
 const adivahaClient = axios.create({
   baseURL: ADIVAHA_BASE_URL,
+  timeout: 10000,
   headers: {
     'Accept': 'application/json',
     'Accept-Encoding': 'gzip',
@@ -22,17 +23,17 @@ const adivahaClient = axios.create({
 // Interceptor to handle Adivaha internal Token Management
 adivahaClient.interceptors.response.use(
   async (response) => {
-    const errorObj = response.data?.responseData?.Response?.Error || 
-                     response.data?.Response?.Error || 
-                     response.data?.Error;
+    const errorObj = response.data?.responseData?.Response?.Error ||
+      response.data?.Response?.Error ||
+      response.data?.Error;
 
     // ErrorCode 6 means 'Invalid Token'
     if (errorObj && errorObj.ErrorCode === 6) {
       const originalRequest = response.config;
-      
+
       if (!originalRequest._retry) {
         originalRequest._retry = true;
-        
+
         try {
           console.log('Adivaha Token Invalid (ErrorCode 6). Generating fresh token...');
           // Call createToken to refresh the internal token state at Adivaha
@@ -44,7 +45,7 @@ adivahaClient.interceptors.response.use(
               'x-api-key': API_KEY
             }
           });
-          
+
           console.log('Token refreshed successfully. Retrying original request...');
           // Retry the original request
           return adivahaClient(originalRequest);
