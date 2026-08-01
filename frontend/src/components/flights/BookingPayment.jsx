@@ -109,7 +109,8 @@ export default function BookingPayment({ flight, selectedFare, passengers = [], 
       let orderAmount = Math.round(finalPayAmount * 100);
 
       try {
-        const res = await fetch("/api/payment/create-order", {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+        const res = await fetch(`${baseUrl}/payment/create-order`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ amount: finalPayAmount })

@@ -149,7 +149,8 @@ export default function BookingPage() {
 
     try {
       // 1. Sync to backend first and wait for response
-      const response = await fetch("/api/booking/confirm", {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+      const response = await fetch(`${baseUrl}/booking/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

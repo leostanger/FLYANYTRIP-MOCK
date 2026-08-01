@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ============================================================================
  * PATH: frontend/src/components/flights/BookingPersonalize.jsx
  * DESCRIPTION: Per-passenger meal preference, extra baggage add-ons, and
@@ -43,7 +43,8 @@ export default function BookingPersonalize({ flight, passengers = [], onContinue
 
   useEffect(() => {
     if (flight?.traceId && flight?.resultIndex) {
-      fetch("/api/flights/ssr", {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+      fetch(`${baseUrl}/flights/ssr`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ traceId: flight.traceId, resultIndex: flight.resultIndex })

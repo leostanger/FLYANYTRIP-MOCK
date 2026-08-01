@@ -91,7 +91,8 @@ export default function BookingConfirmation({ flight, fare, cabinClass: cabinCla
         transactionId,
       };
 
-      const res = await fetch("/api/booking/send-invoice-email", {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+      const res = await fetch(`${baseUrl}/booking/send-invoice-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

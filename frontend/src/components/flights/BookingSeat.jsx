@@ -22,7 +22,8 @@ export default function BookingSeat({ flight, passengers = [], onContinue, onSea
 
   useEffect(() => {
     if (flight?.traceId && flight?.resultIndex) {
-      fetch('/api/flights/ssr', {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+      fetch(`${baseUrl}/flights/ssr`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ traceId: flight.traceId, resultIndex: flight.resultIndex })
