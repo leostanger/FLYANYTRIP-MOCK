@@ -96,10 +96,45 @@ export default function BookingPersonalize({ flight, passengers = [], onContinue
     if (!onAddonsUpdate) return;
     const mc = totalMealCost(meals);
     const primaryMeal = Object.values(meals).find(m => m !== "none") || "none";
+
+    const mealSelections = Object.keys(meals).map(idxKey => {
+      const idx = parseInt(idxKey, 10);
+      const mealId = meals[idx];
+      const mealObj = mealsList.find(m => m.id === mealId);
+      return {
+        paxIdx: idx,
+        name: mealObj ? mealObj.label : "No Meal",
+        price: mealObj ? mealObj.price : 0
+      };
+    });
+
+    const baggageSelections = [];
+    addons.forEach((id) => {
+      if (id.startsWith("bag_")) {
+        const addonObj = addonsList.find(a => a.id === id);
+        let weight = "15 kg";
+        if (id.includes("_30")) weight = "30 kg";
+        else if (id.includes("_15")) weight = "15 kg";
+        else if (id.includes("_")) {
+          const parts = id.split("_");
+          if (parts[1] && !isNaN(parts[1])) {
+            weight = `${parts[1]} kg`;
+          }
+        }
+        baggageSelections.push({
+          paxIdx: 0,
+          weight: weight,
+          price: addonObj ? addonObj.price : 0
+        });
+      }
+    });
+
     onAddonsUpdate(prev => ({
       ...prev,
       meal: primaryMeal,
       paxMeals: meals,
+      mealSelections,
+      baggageSelections,
       mealPrice: mc,
       addons,
       insurance: ins,

@@ -175,6 +175,22 @@ export default function BookingPage() {
                 code: pSeatObj?.seat || (idx === 0 ? selectedSeat : "Auto-assigned"),
                 price: pSeatObj?.price || 0
               };
+            }),
+            meals: passengers.map((p, idx) => {
+              const mealSel = addonsData.mealSelections?.find(m => m.paxIdx === idx);
+              return {
+                paxIdx: idx,
+                name: mealSel ? mealSel.name : "No Meal",
+                price: mealSel ? mealSel.price : 0
+              };
+            }),
+            baggage: passengers.map((p, idx) => {
+              const baggageSel = addonsData.baggageSelections?.find(b => b.paxIdx === idx);
+              return {
+                paxIdx: idx,
+                weight: baggageSel ? baggageSel.weight : "None",
+                price: baggageSel ? baggageSel.price : 0
+              };
             })
           },
           flightSnapshot: flight,
@@ -205,8 +221,19 @@ export default function BookingPage() {
           couponCode: finalCouponCode,
           couponDiscount: finalCouponDiscount,
           couponApplied: !!finalCouponCode,
-          mealSelected: addonsData.meal === "veg" ? "Vegetarian Meal" : addonsData.meal === "nonveg" ? "Non-Vegetarian Meal" : addonsData.meal === "vegan" ? "Vegan Meal" : addonsData.meal === "jain" ? "Jain Meal" : "No Meal",
-          baggageKg: addonsData.addons?.includes("bag_30") ? 30 : addonsData.addons?.includes("bag_15") ? 15 : 15,
+          mealSelected: addonsData.mealSelections?.find(m => m.price > 0)?.name || (addonsData.meal === "veg" ? "Vegetarian Meal" : addonsData.meal === "nonveg" ? "Non-Vegetarian Meal" : addonsData.meal === "vegan" ? "Vegan Meal" : addonsData.meal === "jain" ? "Jain Meal" : "No Meal"),
+          baggageKg: (() => {
+            const hasBag30 = addonsData.addons?.some(a => a.includes("bag_30"));
+            const hasBag15 = addonsData.addons?.some(a => a.includes("bag_15"));
+            if (hasBag30) return 30;
+            if (hasBag15) return 15;
+            if (addonsData.baggageSelections?.length > 0) {
+              const weightStr = addonsData.baggageSelections[0].weight;
+              const weightVal = parseInt(weightStr, 10);
+              if (!isNaN(weightVal)) return weightVal;
+            }
+            return 15;
+          })(),
           seatLabel: selectedSeat ? `${selectedSeat} - ${cabinClass}` : `12A - ${cabinClass}`,
         });
 
