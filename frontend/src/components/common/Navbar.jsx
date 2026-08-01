@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Info } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -31,6 +31,32 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { user, openAuthModal, logout } = useAuth()
 
+  useEffect(() => {
+    if (location.pathname === '/flights' && location.search) {
+      sessionStorage.setItem('lastFlightSearchUrl', location.pathname + location.search)
+    } else if (location.pathname === '/hotels' && location.search) {
+      sessionStorage.setItem('lastHotelSearchUrl', location.pathname + location.search)
+    } else if (location.pathname === '/holidays' && location.search) {
+      sessionStorage.setItem('lastHolidaySearchUrl', location.pathname + location.search)
+    }
+  }, [location])
+
+  const getNavLinkUrl = (path, label) => {
+    if (label === 'Flights') {
+      const saved = sessionStorage.getItem('lastFlightSearchUrl')
+      return saved ? saved : '/?tab=flights'
+    }
+    if (label === 'Hotels') {
+      const saved = sessionStorage.getItem('lastHotelSearchUrl')
+      return saved ? saved : '/?tab=hotels'
+    }
+    if (label === 'Holidays') {
+      const saved = sessionStorage.getItem('lastHolidaySearchUrl')
+      return saved ? saved : '/?tab=holiday'
+    }
+    return path
+  }
+
   return (
     <>
       <nav className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
@@ -43,11 +69,26 @@ export default function Navbar() {
           {/* Desktop Nav Links */}
           <div className="hidden lg:flex items-center gap-0.5 lg:gap-1 h-full">
             {MAIN_LINKS.map(({ path, label, icon, hasDropdown, iconClass, iconStyle }) => {
-              const isActive = location.pathname === path || (path === '/hotels' && location.pathname.startsWith('/hotels')) || (path === '/flights' && location.pathname === '/');
+              const queryParams = new URLSearchParams(location.search)
+              const activeTabQuery = queryParams.get('tab')
+              
+              let isActive = false
+              if (location.pathname === '/') {
+                if (label === 'Flights' && activeTabQuery === 'flights') isActive = true
+                if (label === 'Hotels' && activeTabQuery === 'hotels') isActive = true
+                if (label === 'Holidays' && activeTabQuery === 'holiday') isActive = true
+              } else {
+                if (label === 'Flights' && (location.pathname === '/flights' || location.pathname.startsWith('/flights/'))) isActive = true
+                if (label === 'Hotels' && location.pathname.startsWith('/hotels')) isActive = true
+                if (label === 'Holidays' && location.pathname.startsWith('/holidays')) isActive = true
+                if (label === 'Tour Packages' && location.pathname.startsWith('/tour-packages')) isActive = true
+              }
+
               return (
                 <Link
                   key={path}
-                  to={path}
+                  to={getNavLinkUrl(path, label)}
+                  state={{ scrollToSearch: true }}
                   className={`text-[13px] lg:text-[14px] xl:text-[15px] font-satoshi font-medium transition-all no-underline flex items-center gap-[4px] px-[6px] lg:px-[8px] xl:px-[12px] h-full relative whitespace-nowrap shrink-0 nav-link ${isActive
                       ? 'text-[#ef3535]'
                       : 'text-[#3c3c3c] hover:text-[#ef3535]'
@@ -159,7 +200,8 @@ export default function Navbar() {
               return (
                 <Link
                   key={path}
-                  to={path}
+                  to={getNavLinkUrl(path, label)}
+                  state={{ scrollToSearch: true }}
                   onClick={() => setMobileOpen(false)}
                   className={`block px-3 py-2.5 rounded-lg text-sm font-medium no-underline flex items-center gap-2.5 text-gray-600 hover:text-[#ef3535] whitespace-nowrap`}
                 >

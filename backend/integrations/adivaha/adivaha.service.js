@@ -11,7 +11,7 @@ const API_KEY = process.env.ADIVAHA_API_KEY;
 
 const adivahaClient = axios.create({
   baseURL: ADIVAHA_BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Accept': 'application/json',
     'Accept-Encoding': 'gzip',
@@ -135,11 +135,11 @@ class AdivahaFlightService {
         adults: String(adults),
         children: String(children),
         infants: String(infants),
-        isoneway: tripType === 'oneway' || tripType === 'one' ? "Yes" : "No",
+        isoneway: (tripType === 'oneway' || tripType === 'one' || tripType === 'one-way' || tripType === 'one_way') ? "Yes" : "No",
         From_IATACODE: origin,
         To_IATACODE: destination,
         departure_date: formatDate(departureDate),
-        return_date: tripType === 'round' && returnDate ? formatDate(returnDate) : "",
+        return_date: (tripType === 'round' || tripType === 'round-trip' || tripType === 'roundtrip') && returnDate ? formatDate(returnDate) : "",
         Flights_category: categoryMap[searchPayload.cabinClass] || "Economy"
       };
 

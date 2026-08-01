@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import flightService from '../../services/flightService'
 import {
   FlightsIcon,
@@ -283,10 +283,14 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
     const fetchFares = async () => {
       setLoadingFares(true)
       try {
+        const yearVal = currentMonth.getFullYear()
+        const monthVal = String(currentMonth.getMonth() + 1).padStart(2, '0')
+        const reqDate = `${yearVal}-${monthVal}-01`
+
         const res = await flightService.getCalendarFare({
           origin: origin || 'DEL',
           destination: destination || 'DXB',
-          departureDate: selectedDate || new Date().toISOString().split('T')[0],
+          departureDate: reqDate,
           cabinClass: 'Economy'
         })
 
@@ -299,7 +303,13 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
               const d = item.DepartureDate || item.date || item.Date
               const p = item.Fare || item.price || item.SingleAdult || item.Price
               if (d && p) {
-                map[d] = p
+                const cleanD = String(d).split('T')[0].split(' ')[0]
+                const dObj = parseLocalDate(cleanD)
+                const y = dObj.getFullYear()
+                const m = String(dObj.getMonth() + 1).padStart(2, '0')
+                const dayVal = String(dObj.getDate()).padStart(2, '0')
+                const dateKey = `${y}-${m}-${dayVal}`
+                map[dateKey] = p
               }
             })
           }
@@ -568,6 +578,7 @@ function ChevronDownIcon({ className }) {
 
 export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [tripType, setTripType] = useState('one-way')
   const [isRotated, setIsRotated] = useState(false)
 
@@ -654,6 +665,7 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
 
   return (
     <div
+      id="search-booking-card"
       className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.8)] border border-[rgba(255,255,255,0.2)] border-solid rounded-[13.444px] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] p-[24px] w-full max-w-[648px] relative z-10 transition-all duration-300"
     >
       {/* Tabs Section */}
@@ -664,7 +676,12 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
             <button
               key={id}
               type="button"
-              onClick={() => setActiveTab?.(id)}
+              onClick={() => {
+                setActiveTab?.(id)
+                if (window.location.pathname === '/') {
+                  setSearchParams({ tab: id })
+                }
+              }}
               className="flex flex-col items-center pt-[11px] relative h-full bg-transparent border-none cursor-pointer p-0 group"
               style={{ width }}
             >
@@ -1225,6 +1242,7 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
                 navigate(`/hotels?dest=${encodeURIComponent(hotelDest)}&checkin=${checkInDate}&checkout=${checkOutDate}&rooms=${rooms}&guests=${guests}`)
               } else if (activeTab === 'holiday') {
                 console.log('Search clicked for holiday:', { holidayDest, holidayBudget, holidayStartDate, holidayEndDate, holidayTravelers })
+                navigate(`/holidays?dest=${encodeURIComponent(holidayDest)}&budget=${encodeURIComponent(holidayBudget)}&start=${holidayStartDate}&end=${holidayEndDate}&travelers=${holidayTravelers}`)
               } else {
                 const origin = fromLoc.code || 'DEL';
                 const destination = toLoc.code || 'BOM';

@@ -1,11 +1,33 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams, useLocation } from 'react-router-dom'
 import BookingCard from '../flights/BookingCard'
 import heroBg from '../../assets/Home page/hero-banner copy.png'
 import hotelBg from '../../assets/hotels/Hotel background image.svg'
 import holidayBg from '../../assets/Holiday/Holiday background.svg'
 
 export default function HeroSection() {
-  const [activeTab, setActiveTab] = useState('flights')
+  const [searchParams] = useSearchParams()
+  const location = useLocation()
+  const queryTab = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState(queryTab || 'flights')
+
+  useEffect(() => {
+    if (queryTab && queryTab !== activeTab) {
+      setActiveTab(queryTab)
+    }
+  }, [queryTab])
+
+  useEffect(() => {
+    if (location.state?.scrollToSearch || queryTab) {
+      const element = document.getElementById('search-booking-card')
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+      if (location.state?.scrollToSearch) {
+        window.history.replaceState({}, document.title)
+      }
+    }
+  }, [location.state, queryTab])
 
   return (
     <section className="relative w-full min-h-[600px] flex flex-col overflow-hidden bg-white">
