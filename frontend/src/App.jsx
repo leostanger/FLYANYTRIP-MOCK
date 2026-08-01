@@ -9,6 +9,14 @@ import FlightBookingPage from './components/flights/BookingPage';
 import MyBookings from './pages/MyBookings';
 import Support from './pages/Support';
 import AboutPage from './pages/AboutPage';
+import ContactUs from './pages/ContactUs';
+import RefundPolicy from './pages/RefundPolicy';
+import CancelBooking from './pages/CancelBooking';
+import PNRStatus from './pages/PNRStatus';
+import Careers from './pages/Careers';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfUse from './pages/TermsOfUse';
+import Sitemap from './pages/Sitemap';
 
 // Tour Packages
 import ToursPackages from './common/Tour package/pages/ToursPackages';
@@ -35,6 +43,14 @@ function App() {
           <Route path="/support" element={<Support />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/about-us" element={<AboutPage />} />
+          <Route path="/contact-us" element={<ContactUs />} />
+          <Route path="/refund-policy" element={<RefundPolicy />} />
+          <Route path="/cancel-booking" element={<CancelBooking />} />
+          <Route path="/pnr-status" element={<PNRStatus />} />
+          <Route path="/careers" element={<Careers />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-use" element={<TermsOfUse />} />
+          <Route path="/sitemap" element={<Sitemap />} />
 
           {/* Tour Packages Routes */}
           <Route path="/tour-packages" element={<ToursPackages />} />

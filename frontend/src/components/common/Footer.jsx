@@ -4,10 +4,39 @@ import playStoreImg from '../../assets/Mobile phone/Playstore.svg';
 import footerBgImg from '../../assets/Footer/Footer background.png';
 import phoneIconImg from '../../assets/Mobile phone/Group 14.svg';
 
-const TRAVEL = ['Flights', 'Hotels', 'Trains', 'Bus Tickets', 'Tour Packages', 'Car Rentals', 'Cab Booking'];
-const HOLIDAYS = ['Internationals Tours', 'Domestic Tours', 'Honeymoon', 'Adventure', 'Family Holidays', 'Beach Packages'];
-const SUPPORT_LINKS = ['Help Center', 'Contact Us', 'Refund Policy', 'Cancel Booking', 'PNR Status', "FAQ's"];
-const COMPANY = ['About Us', 'Careers', 'Press', 'Blog', 'Partners', 'Investors'];
+const TRAVEL = [
+  { label: 'Flights', path: '/?tab=flights' },
+  { label: 'Hotels', path: '/?tab=hotels' },
+  { label: 'Trains', path: '/' },
+  { label: 'Bus Tickets', path: '/' },
+  { label: 'Tour Packages', path: '/tour-packages' },
+  { label: 'Car Rentals', path: '/' },
+  { label: 'Cab Booking', path: '/' }
+];
+const HOLIDAYS = [
+  { label: 'Internationals Tours', path: '/tour-packages' },
+  { label: 'Domestic Tours', path: '/tour-packages' },
+  { label: 'Honeymoon', path: '/tour-packages' },
+  { label: 'Adventure', path: '/tour-packages' },
+  { label: 'Family Holidays', path: '/tour-packages' },
+  { label: 'Beach Packages', path: '/tour-packages' }
+];
+const SUPPORT_LINKS = [
+  { label: 'Help Center', path: '/support' },
+  { label: 'Contact Us', path: '/contact-us' },
+  { label: 'Refund Policy', path: '/refund-policy' },
+  { label: 'Cancel Booking', path: '/cancel-booking' },
+  { label: 'PNR Status', path: '/pnr-status' },
+  { label: "FAQ's", path: '/support' }
+];
+const COMPANY = [
+  { label: 'About Us', path: '/about-us' },
+  { label: 'Careers', path: '/careers' },
+  { label: 'Press', path: '/' },
+  { label: 'Blog', path: '/' },
+  { label: 'Partners', path: '/' },
+  { label: 'Investors', path: '/' }
+];
 
 const CompanyLogo = ({ className }) => (
   <svg viewBox="0 0 167 38" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -142,9 +171,9 @@ export default function Footer() {
             <div className="w-[32px] h-[2px] bg-[#ef3535] mt-2 mb-5"></div>
             <ul className="space-y-3 list-none p-0 m-0">
               {TRAVEL.map((item) => (
-                <li key={item}>
-                  <Link to="/" className="text-[17px] font-light text-gray-400 hover:text-[#ef3535] transition-colors no-underline">
-                    {item}
+                <li key={item.label}>
+                  <Link to={item.path} className="text-[17px] font-light text-gray-400 hover:text-[#ef3535] transition-colors no-underline">
+                    {item.label}
                   </Link>
                 </li>
               ))}
@@ -157,9 +186,9 @@ export default function Footer() {
             <div className="w-[32px] h-[2px] bg-[#ef3535] mt-2 mb-5"></div>
             <ul className="space-y-3 list-none p-0 m-0">
               {HOLIDAYS.map((item) => (
-                <li key={item}>
-                  <Link to="/" className="text-[17px] font-light text-gray-400 hover:text-[#ef3535] transition-colors no-underline">
-                    {item}
+                <li key={item.label}>
+                  <Link to={item.path} className="text-[17px] font-light text-gray-400 hover:text-[#ef3535] transition-colors no-underline">
+                    {item.label}
                   </Link>
                 </li>
               ))}
@@ -172,9 +201,9 @@ export default function Footer() {
             <div className="w-[32px] h-[2px] bg-[#ef3535] mt-2 mb-5"></div>
             <ul className="space-y-3 list-none p-0 m-0">
               {SUPPORT_LINKS.map((item) => (
-                <li key={item}>
-                  <Link to="/" className="text-[17px] font-light text-gray-400 hover:text-[#ef3535] transition-colors no-underline">
-                    {item}
+                <li key={item.label}>
+                  <Link to={item.path} className="text-[17px] font-light text-gray-400 hover:text-[#ef3535] transition-colors no-underline">
+                    {item.label}
                   </Link>
                 </li>
               ))}
@@ -187,9 +216,9 @@ export default function Footer() {
             <div className="w-[32px] h-[2px] bg-[#ef3535] mt-2 mb-5"></div>
             <ul className="space-y-3 list-none p-0 m-0">
               {COMPANY.map((item) => (
-                <li key={item}>
-                  <Link to="/" className="text-[17px] font-light text-gray-400 hover:text-[#ef3535] transition-colors no-underline">
-                    {item}
+                <li key={item.label}>
+                  <Link to={item.path} className="text-[17px] font-light text-gray-400 hover:text-[#ef3535] transition-colors no-underline">
+                    {item.label}
                   </Link>
                 </li>
               ))}
@@ -245,11 +274,11 @@ export default function Footer() {
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 md:gap-5 text-gray-400">
-            <Link to="/" className="hover:text-white transition-colors no-underline font-light text-[16px]">Privacy Policy</Link>
+            <Link to="/privacy-policy" className="hover:text-white transition-colors no-underline font-light text-[16px]">Privacy Policy</Link>
             <span className="text-[#ef3535] font-bold">•</span>
-            <Link to="/" className="hover:text-white transition-colors no-underline font-light text-[16px]">Terms of Use</Link>
+            <Link to="/terms-of-use" className="hover:text-white transition-colors no-underline font-light text-[16px]">Terms of Use</Link>
             <span className="text-[#ef3535] font-bold">•</span>
-            <Link to="/" className="hover:text-white transition-colors no-underline font-light text-[16px]">Sitemap</Link>
+            <Link to="/sitemap" className="hover:text-white transition-colors no-underline font-light text-[16px]">Sitemap</Link>
           </div>
         </div>
       </div>
