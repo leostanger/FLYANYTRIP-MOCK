@@ -22,7 +22,7 @@ const searchFlights = async (req, res, next) => {
       return res.status(200).json({
         success: true,
         source: 'cache',
-        data: cachedResult,
+        data: { flights: cachedResult },
       });
     }
 
@@ -75,7 +75,7 @@ const searchMultiCityFlights = async (req, res, next) => {
       return res.status(200).json({
         success: true,
         source: 'cache',
-        data: cachedResult,
+        data: { flights: cachedResult },
       });
     }
 

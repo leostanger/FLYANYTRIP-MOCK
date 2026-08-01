@@ -69,6 +69,24 @@ export default function FareModal({ flight, onClose, onContinue }) {
 
   const currentFare = fareDetails[selectedFare];
 
+  const segments = flight.raw?.Segments || [];
+  let depTerminal = "";
+  let arrTerminal = "";
+  if (segments.length > 0) {
+    const firstLeg = segments[0];
+    const lastLeg = segments[segments.length - 1];
+    const firstSeg = Array.isArray(firstLeg) ? firstLeg[0] : firstLeg;
+    const lastSeg = Array.isArray(lastLeg) ? lastLeg[lastLeg.length - 1] : lastLeg;
+    if (firstSeg?.Origin?.Terminal) depTerminal = `Terminal ${firstSeg.Origin.Terminal}`;
+    if (lastSeg?.Destination?.Terminal) arrTerminal = `Terminal ${lastSeg.Destination.Terminal}`;
+  }
+
+  const formattedDate = flight.date ? (() => {
+    const d = new Date(flight.date);
+    if (isNaN(d.getTime())) return flight.date;
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  })() : "15 Dec 2026";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs font-['Quicksand'] p-3 md:p-4 select-none">
       {/* Modal Container card */}
@@ -87,7 +105,7 @@ export default function FareModal({ flight, onClose, onContinue }) {
           >
             <X size={16} strokeWidth={2} />
           </button>
-
+ 
           {/* Primary Route Detail */}
           <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr_1fr_1fr] items-center gap-3 pr-8">
             {/* Airline Info */}
@@ -112,17 +130,17 @@ export default function FareModal({ flight, onClose, onContinue }) {
                 </div>
               </div>
             </div>
-
+ 
             {/* Departure */}
             <div className="text-left md:text-center">
               <span className="font-['Satoshi'] font-bold text-[22px] text-[#1A1A1A] leading-none block">
                 {flight.departTime || flight.depTime || "06:00"}
               </span>
               <span className="font-['Quicksand'] text-[11px] font-bold text-gray-500 uppercase block mt-1">
-                {flight.departCity || "DEL"} &middot; TERMINAL 2
+                {flight.departCity || "DEL"}{depTerminal ? ` · ${depTerminal}` : ""}
               </span>
             </div>
-
+ 
             {/* Timeline Progress */}
             <div className="text-center px-2 hidden md:block">
               <span className="font-['Quicksand'] text-[11.5px] font-semibold text-gray-400 block mb-0.5">
@@ -140,23 +158,23 @@ export default function FareModal({ flight, onClose, onContinue }) {
                 {flight.stops || "Non-stop"}
               </span>
             </div>
-
+ 
             {/* Arrival */}
             <div className="text-left md:text-center">
               <span className="font-['Satoshi'] font-bold text-[22px] text-[#1A1A1A] leading-none block">
                 {flight.arrivalTime || flight.arrTime || "08:10"}
               </span>
               <span className="font-['Quicksand'] text-[11px] font-bold text-gray-500 uppercase block mt-1">
-                {flight.arrivalCity || "BOM"} &middot; TERMINAL 1
+                {flight.arrivalCity || "BOM"}{arrTerminal ? ` · ${arrTerminal}` : ""}
               </span>
             </div>
           </div>
-
+ 
           {/* Sub-strip row with icons */}
           <div className="flex flex-wrap items-center gap-5 mt-3 pt-2.5 border-t border-gray-100 text-[11.5px] font-semibold text-gray-600">
             <span className="flex items-center gap-1.5">
               <Calendar size={13} className="text-gray-400" />
-              <span>15 Dec 2026</span>
+              <span>{formattedDate}</span>
             </span>
             <span className="flex items-center gap-1.5">
               <User size={13} className="text-gray-400" />
@@ -171,7 +189,7 @@ export default function FareModal({ flight, onClose, onContinue }) {
               <span>On-time 92%</span>
             </span>
           </div>
-
+ 
         </div>
 
         {/* ========================================================================= */}

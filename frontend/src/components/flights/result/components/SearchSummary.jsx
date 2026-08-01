@@ -25,6 +25,25 @@ export default function SearchSummary({ onModify, loading }) {
   const children = searchParams.get("children") || stateContext.children || "0";
   const totalTravellers = parseInt(adults, 10) + parseInt(children, 10);
 
+  const rawSegments = searchParams.get("segments") || "[]";
+  let segments = [];
+  try { segments = JSON.parse(decodeURIComponent(rawSegments)); } catch { segments = []; }
+
+  const cities = [];
+  if (tripType === 'multi-city' && segments.length > 0) {
+    segments.forEach((seg, idx) => {
+      if (idx === 0) {
+        cities.push(seg.from);
+      }
+      cities.push(seg.to);
+    });
+  }
+
+  const formatSegmentDate = (dateStr) => {
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+  };
+
   const handleSwap = () => {
     const temp = origin;
     setOrigin(destination);
@@ -67,17 +86,32 @@ export default function SearchSummary({ onModify, loading }) {
         <div className="flex items-center flex-wrap gap-3 md:gap-4 lg:gap-5 text-[#333333]">
           
           {/* Departure & Destination Cities */}
-          <div className="flex items-center gap-3 font-['Satoshi'] font-bold text-[17.5px] md:text-[18.5px] text-[#1A1A1A]">
-            <span>{origin}</span>
-            <span className="text-[#999999] text-[15px] font-normal">→</span>
-            <span>{destination}</span>
-          </div>
+          {tripType === 'multi-city' && cities.length > 0 ? (
+            <div className="flex items-center gap-2 font-['Satoshi'] font-bold text-[17.5px] md:text-[18.5px] text-[#1A1A1A]">
+              {cities.map((city, idx) => (
+                <React.Fragment key={idx}>
+                  {idx > 0 && <span className="text-[#999999] text-[15px] font-normal">→</span>}
+                  <span>{city}</span>
+                </React.Fragment>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 font-['Satoshi'] font-bold text-[17.5px] md:text-[18.5px] text-[#1A1A1A]">
+              <span>{origin}</span>
+              <span className="text-[#999999] text-[15px] font-normal">→</span>
+              <span>{destination}</span>
+            </div>
+          )}
 
           <div className="h-[18px] w-[1px] bg-[#EAEAEA] hidden sm:block" />
 
           {/* Travel Date */}
           <span className="font-['Quicksand'] text-[13.5px] md:text-[14.5px] font-medium text-[#333333]">
-            {departureDate} {tripType === 'round-trip' && returnDate ? ` - ${returnDate}` : ''}
+            {tripType === 'multi-city' && segments.length > 0 ? (
+              segments.map(seg => formatSegmentDate(seg.departureDate)).join(" · ")
+            ) : (
+              `${departureDate}${tripType === 'round-trip' && returnDate ? ` - ${returnDate}` : ''}`
+            )}
           </span>
 
           <div className="h-[18px] w-[1px] bg-[#EAEAEA] hidden sm:block" />
@@ -91,32 +125,34 @@ export default function SearchSummary({ onModify, loading }) {
 
           {/* Trip Type Badge Pill */}
           <span className="bg-[#F5F5F5] text-[#666666] text-[12px] font-['Quicksand'] font-semibold px-3 py-1 rounded-full capitalize">
-            {tripType === 'round-trip' ? 'Round Trip' : 'One Way'}
+            {tripType === 'multi-city' ? 'Multi-City' : tripType === 'round-trip' ? 'Round Trip' : 'One Way'}
           </span>
         </div>
 
         {/* Right Side: Modify Search Toggle Button */}
-        <button
-          type="button"
-          onClick={() => setIsEditing(!isEditing)}
-          className={`flex items-center gap-2 border font-['Quicksand'] font-bold text-[13px] px-4 py-1.5 rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all cursor-pointer flex-shrink-0 self-start md:self-auto ${
-            isEditing 
-              ? "bg-[#F12B19] border-[#F12B19] text-white" 
-              : "bg-white border-[#E0E0E0] hover:border-gray-400 text-[#333333] hover:bg-gray-50"
-          }`}
-        >
-          {isEditing ? (
-            <>
-              <ChevronUp size={14} />
-              <span>Close</span>
-            </>
-          ) : (
-            <>
-              <Pencil size={13} />
-              <span>Modify Search</span>
-            </>
-          )}
-        </button>
+        {tripType !== 'multi-city' && (
+          <button
+            type="button"
+            onClick={() => setIsEditing(!isEditing)}
+            className={`flex items-center gap-2 border font-['Quicksand'] font-bold text-[13px] px-4 py-1.5 rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all cursor-pointer flex-shrink-0 self-start md:self-auto ${
+              isEditing 
+                ? "bg-[#F12B19] border-[#F12B19] text-white" 
+                : "bg-white border-[#E0E0E0] hover:border-gray-400 text-[#333333] hover:bg-gray-50"
+            }`}
+          >
+            {isEditing ? (
+              <>
+                <ChevronUp size={14} />
+                <span>Close</span>
+              </>
+            ) : (
+              <>
+                <Pencil size={13} />
+                <span>Modify Search</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* EXPANDABLE INLINE SEARCH MODIFIER FORM */}
