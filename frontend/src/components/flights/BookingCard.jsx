@@ -785,39 +785,42 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
                   </div>
 
                   {/* From / To row */}
-                  <div className="relative flex gap-[8px] items-center">
-                    {/* From */}
-                    <div
-                      className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1px] flex flex-col gap-[2px] items-start px-[12px] py-[7px] rounded-[10px] flex-1 cursor-pointer hover:border-[#e53935]/40 transition-colors"
-                      onClick={() => setActiveLegPicker({ legIdx, field: 'from' })}
-                    >
-                      <span className="font-satoshi font-normal text-[#666] text-[11px] leading-none">From</span>
-                      <span className="font-satoshi font-bold text-[#1a1a1a] text-[15px] leading-tight font-sans">
-                        {leg.from.code ? leg.from.city : <span className="text-gray-400 font-normal text-[13px]">Select city</span>}
-                      </span>
-                      {leg.from.code && <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">{leg.from.airport}</span>}
-                    </div>
+                  <div className="flex gap-[8px] items-center">
+                    {/* From / To Wrapper */}
+                    <div className="relative flex flex-1 gap-[8px] items-center">
+                      {/* From */}
+                      <div
+                        className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1px] flex flex-col gap-[2px] items-start px-[12px] py-[7px] rounded-[10px] flex-1 cursor-pointer hover:border-[#e53935]/40 transition-colors"
+                        onClick={() => setActiveLegPicker({ legIdx, field: 'from' })}
+                      >
+                        <span className="font-satoshi font-normal text-[#666] text-[11px] leading-none">From</span>
+                        <span className="font-satoshi font-bold text-[#1a1a1a] text-[15px] leading-tight font-sans">
+                          {leg.from.code ? leg.from.city : <span className="text-gray-400 font-normal text-[13px]">Select city</span>}
+                        </span>
+                        {leg.from.code && <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">{leg.from.airport}</span>}
+                      </div>
 
-                    {/* Swap mini-button */}
-                    <button
-                      type="button"
-                      onClick={() => { const tmp = leg.from; updateLeg(legIdx, 'from', leg.to); updateLeg(legIdx, 'to', tmp) }}
-                      className="absolute left-[calc(50%-13px)] top-[12px] bg-white border-[#e8e8e8] border rounded-full w-[26px] h-[26px] flex items-center justify-center cursor-pointer hover:border-gray-400 z-10 shrink-0"
-                      aria-label="Swap"
-                    >
-                      <SwapIcon className="w-[11px] h-[9px] text-[#e53935]" />
-                    </button>
+                      {/* Swap mini-button */}
+                      <button
+                        type="button"
+                        onClick={() => { const tmp = leg.from; updateLeg(legIdx, 'from', leg.to); updateLeg(legIdx, 'to', tmp) }}
+                        className="absolute left-[calc(50%-13px)] top-[12px] bg-white border-[#e8e8e8] border rounded-full w-[26px] h-[26px] flex items-center justify-center cursor-pointer hover:border-gray-400 z-10 shrink-0"
+                        aria-label="Swap"
+                      >
+                        <SwapIcon className="w-[11px] h-[9px] text-[#e53935]" />
+                      </button>
 
-                    {/* To */}
-                    <div
-                      className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1px] flex flex-col gap-[2px] items-start px-[12px] py-[7px] rounded-[10px] flex-1 cursor-pointer hover:border-[#e53935]/40 transition-colors"
-                      onClick={() => setActiveLegPicker({ legIdx, field: 'to' })}
-                    >
-                      <span className="font-satoshi font-normal text-[#666] text-[11px] leading-none">To</span>
-                      <span className="font-satoshi font-bold text-[#1a1a1a] text-[15px] leading-tight font-sans">
-                        {leg.to.code ? leg.to.city : <span className="text-gray-400 font-normal text-[13px]">Select city</span>}
-                      </span>
-                      {leg.to.code && <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">{leg.to.airport}</span>}
+                      {/* To */}
+                      <div
+                        className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1px] flex flex-col gap-[2px] items-start px-[12px] py-[7px] rounded-[10px] flex-1 cursor-pointer hover:border-[#e53935]/40 transition-colors"
+                        onClick={() => setActiveLegPicker({ legIdx, field: 'to' })}
+                      >
+                        <span className="font-satoshi font-normal text-[#666] text-[11px] leading-none">To</span>
+                        <span className="font-satoshi font-bold text-[#1a1a1a] text-[15px] leading-tight font-sans">
+                          {leg.to.code ? leg.to.city : <span className="text-gray-400 font-normal text-[13px]">Select city</span>}
+                        </span>
+                        {leg.to.code && <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">{leg.to.airport}</span>}
+                      </div>
                     </div>
 
                     {/* Date */}
