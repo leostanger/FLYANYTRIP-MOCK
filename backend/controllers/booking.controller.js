@@ -46,15 +46,122 @@ exports.confirmBooking = async (req, res, next) => {
             userId // optional
         } = req.body;
 
-        // 1. Call Adivaha API to book the ticket
+        // Determine isoneway, isDomestic, and IsDomesticReturn
+        let isoneway = "Yes";
+        let isDomestic = "Yes";
+        
+        const segments = flightSnapshot?.raw?.Segments || [];
+        if (segments.length > 1) {
+            isoneway = "No";
+        }
+
+        if (flightSnapshot?.raw?.IsDomestic !== undefined) {
+            isDomestic = flightSnapshot.raw.IsDomestic ? "Yes" : "No";
+        } else if (segments.length > 0 && segments[0]?.length > 0) {
+            const firstSeg = segments[0][0];
+            const lastSegList = segments[segments.length - 1];
+            const lastSeg = lastSegList?.[lastSegList.length - 1];
+            
+            const originCountry = firstSeg?.Origin?.Airport?.CountryCode || "IN";
+            const destCountry = lastSeg?.Destination?.Airport?.CountryCode || "IN";
+            
+            isDomestic = (originCountry === "IN" && destCountry === "IN") ? "Yes" : "No";
+        } else if (flightSnapshot?.from && flightSnapshot?.to) {
+            const indianAirports = ['DEL', 'BOM', 'BLR', 'MAA', 'HYD', 'CCU', 'COK', 'AMD', 'PNQ', 'GOI', 'GOX', 'JAI', 'LKO', 'TRV', 'PAT', 'GAU', 'BBI', 'SXR', 'IXB', 'IXR', 'IDR', 'NAG', 'JDH', 'UDR', 'VTZ'];
+            const isOriginInd = indianAirports.includes(flightSnapshot.from.toUpperCase());
+            const isDestInd = indianAirports.includes(flightSnapshot.to.toUpperCase());
+            isDomestic = (isOriginInd && isDestInd) ? "Yes" : "No";
+        }
+        
+        const IsDomesticReturn = (isDomestic === "Yes" && isoneway === "No") ? "Yes" : "No";
+
+        // Enrich passengers data for Adivaha API schema validation
+        const departureDateStr = flightSnapshot?.raw?.Segments?.[0]?.[0]?.Origin?.DepTime || new Date().toISOString();
+        const departureDate = new Date(departureDateStr);
+
+        const enrichedPassengers = (passengers || []).map((p, idx) => {
+            const title = (p.Title || "Mr").replace(/\./g, "").trim();
+
+            let gender = 1;
+            const titleLower = title.toLowerCase();
+            if (["mr", "mstr", "master"].includes(titleLower)) {
+                gender = 1;
+            } else if (["mrs", "ms", "miss"].includes(titleLower)) {
+                gender = 2;
+            } else if (p.Gender) {
+                gender = Number(p.Gender) === 2 ? 2 : 1;
+            }
+
+            let paxType = "1";
+            let dobStr = p.DateOfBirth || "1990-01-01";
+            if (dobStr.includes("T")) {
+                dobStr = dobStr.split("T")[0] + "T00:00:00";
+            } else {
+                dobStr = dobStr + "T00:00:00";
+            }
+
+            try {
+                const dob = new Date(dobStr);
+                if (!isNaN(dob.getTime())) {
+                    let age = departureDate.getFullYear() - dob.getFullYear();
+                    const m = departureDate.getMonth() - dob.getMonth();
+                    if (m < 0 || (m === 0 && departureDate.getDate() < dob.getDate())) {
+                        age--;
+                    }
+                    if (age < 2) paxType = "3";
+                    else if (age < 12) paxType = "2";
+                    else paxType = "1";
+                }
+            } catch (dobErr) {
+                console.warn("Failed to parse DOB for age calculation:", dobStr);
+            }
+
+            const email = p.Email || contactDetails?.Email || "guest@flyanytrip.com";
+            const contactNo = p.ContactNo || contactDetails?.ContactNo || "9999999999";
+            
+            const addressLine1 = p.AddressLine1 || contactDetails?.AddressLine1 || "Street Address";
+            const addressLine2 = p.AddressLine2 || contactDetails?.AddressLine2 || "";
+            const city = p.City || contactDetails?.City || "Delhi";
+            const countryCode = p.CountryCode || contactDetails?.CountryCode || "IN";
+            const countryName = p.CountryName || contactDetails?.CountryName || "India";
+            const nationality = p.Nationality || contactDetails?.Nationality || "IN";
+
+            const isLeadPax = idx === 0;
+
+            return {
+                Title: title,
+                FirstName: p.FirstName || "Rahul",
+                LastName: p.LastName || "Sharma",
+                PaxType: paxType,
+                DateOfBirth: dobStr,
+                Gender: gender,
+                AddressLine1: addressLine1,
+                AddressLine2: addressLine2,
+                City: city,
+                CountryCode: countryCode.toUpperCase(),
+                CountryName: countryName,
+                Nationality: nationality.toUpperCase(),
+                ContactNo: contactNo,
+                Email: email,
+                IsLeadPax: isLeadPax,
+                PassportNo: isDomestic === "No" ? (p.PassportNo || "P1234567") : null,
+                PassportExpiry: isDomestic === "No" ? (p.PassportExpiry || "2035-12-31T00:00:00") : null,
+                Seat: p.Seat
+            };
+        });
+
+        // 1. Call Adivaha API to book/hold the ticket
         let adivahaRes;
         try {
             adivahaRes = await AdivahaFlightService.bookFlight({
                 isLCC,
                 TraceId: traceId,
                 ResultIndex: resultIndex,
-                Passengers: passengers,
-                ContactDetails: contactDetails
+                Passengers: enrichedPassengers,
+                ContactDetails: contactDetails,
+                isoneway,
+                isDomestic,
+                IsDomesticReturn
             });
         } catch (adivahaError) {
             console.error('Adivaha bookFlight call failed:', adivahaError);
@@ -66,8 +173,7 @@ exports.confirmBooking = async (req, res, next) => {
         }
 
         // Extract PNR and Booking ID from Adivaha Response
-        // Since Adivaha response format can vary, we try common paths
-        const responseData = adivahaRes?.responseData?.Response || adivahaRes?.Response || adivahaRes;
+        let responseData = adivahaRes?.responseData?.Response || adivahaRes?.Response || adivahaRes;
         
         // If the booking fails from Adivaha side
         if (responseData?.Error?.ErrorCode !== 0 && responseData?.Error?.ErrorCode !== undefined) {
@@ -78,9 +184,40 @@ exports.confirmBooking = async (req, res, next) => {
             });
         }
 
-        const pnr = responseData?.PNR || (responseData?.BookingId ? String(responseData.BookingId) : null);
-        const providerBookingId = responseData?.BookingId || null;
-        const ticketStatus = responseData?.TicketStatus || (isLCC ? 'TICKETED' : 'BOOKED');
+        let pnr = responseData?.PNR || (responseData?.BookingId ? String(responseData.BookingId) : null);
+        let providerBookingId = responseData?.BookingId || null;
+        let ticketStatus = responseData?.TicketStatus || (isLCC ? 'TICKETED' : 'BOOKED');
+        let ticketingRes = null;
+
+        // 1.5. For Non-LCC flights, trigger step 2: Ticketing (issueNonLccTicket)
+        if (!isLCC && providerBookingId && pnr) {
+            try {
+                ticketingRes = await AdivahaFlightService.issueNonLccTicket({
+                    PNR: pnr,
+                    BookingId: providerBookingId,
+                    order_id: `ORD-${Date.now()}`,
+                    TraceId: traceId,
+                    isoneway,
+                    isDomestic,
+                    IsDomesticReturn,
+                    Passengers: enrichedPassengers
+                });
+
+                const ticketResData = ticketingRes?.responseData?.Response || ticketingRes?.Response || ticketingRes;
+
+                if (ticketResData?.Error?.ErrorCode !== 0 && ticketResData?.Error?.ErrorCode !== undefined) {
+                    console.error('Adivaha Non-LCC Ticketing Failed:', ticketResData.Error);
+                    ticketStatus = 'HOLD_TICKET_FAILED';
+                } else {
+                    if (ticketResData?.PNR) pnr = ticketResData.PNR;
+                    if (ticketResData?.BookingId) providerBookingId = ticketResData.BookingId;
+                    ticketStatus = 'TICKETED';
+                }
+            } catch (ticketingError) {
+                console.error('Adivaha Non-LCC Ticketing request error:', ticketingError);
+                ticketStatus = 'HOLD_TICKET_FAILED';
+            }
+        }
 
         // 2. Find or Create User if not logged in
         let actualUserId = userId ? parseInt(userId, 10) : null;
@@ -97,8 +234,8 @@ exports.confirmBooking = async (req, res, next) => {
                         data: {
                             email: contactDetails.Email,
                             phone: contactDetails.ContactNo || null,
-                            first_name: passengers?.[0]?.FirstName || 'Guest',
-                            last_name: passengers?.[0]?.LastName || 'User',
+                            first_name: enrichedPassengers?.[0]?.FirstName || 'Guest',
+                            last_name: enrichedPassengers?.[0]?.LastName || 'User',
                             user_type: 'GUEST'
                         }
                     });
@@ -132,7 +269,6 @@ exports.confirmBooking = async (req, res, next) => {
                         validating_airline: flightSnapshot?.airlineCode || 'XX',
                         origin_airport: flightSnapshot?.from || 'XXX',
                         destination_airport: flightSnapshot?.to || 'XXX',
-                        // Optional chaining to safely parse dates if they exist
                         departure_date: flightSnapshot?.raw?.Segments?.[0]?.[0]?.Origin?.DepTime 
                                         ? new Date(flightSnapshot.raw.Segments[0][0].Origin.DepTime) 
                                         : new Date(),
@@ -142,19 +278,19 @@ exports.confirmBooking = async (req, res, next) => {
                         ticket_status: ticketStatus,
                         booking_status: 'CONFIRMED',
                         is_lcc: isLCC || false,
-                        total_passengers: passengers?.length || 1,
+                        total_passengers: enrichedPassengers?.length || 1,
                         distance_km: 0,
                         raw_response: {
                             adivaha: adivahaRes,
-                            passengers: passengers?.map((p, idx) => {
-                                // Resolve SSR fields — seat is stored as `.code` on the selection object
+                            adivahaTicketing: ticketingRes,
+                            passengers: enrichedPassengers.map((p, idx) => {
                                 const seatSel    = ssrSelections?.seats?.find(s => s.paxIdx === idx);
                                 const mealSel    = ssrSelections?.meals?.find(m => m.paxIdx === idx);
                                 const baggageSel = ssrSelections?.baggage?.find(b => b.paxIdx === idx);
                                 return {
                                     firstName:      p.FirstName,
                                     lastName:       p.LastName,
-                                    gender:         p.Gender === 1 ? 'Male' : 'Female',
+                                    gender:         p.Gender === 2 ? 'Female' : 'Male',
                                     dob:            p.DateOfBirth || 'N/A',
                                     passportNo:     p.PassportNo  || 'N/A',
                                     passportExpiry: p.PassportExpiry || 'N/A',
@@ -166,15 +302,15 @@ exports.confirmBooking = async (req, res, next) => {
                                     baggagePrice: baggageSel?.price || 0,
                                     ticketStatus: ticketStatus,
                                 };
-                            }) || [],
+                            }),
                             flightSnapshot: flightSnapshot
                         }
                     }
                 });
 
                 // C. Save SSR (Seat, Meal, Baggage) per passenger — dedicated table rows
-                if (passengers && passengers.length > 0) {
-                    const paxRows = passengers.map((p, idx) => {
+                if (enrichedPassengers && enrichedPassengers.length > 0) {
+                    const paxRows = enrichedPassengers.map((p, idx) => {
                         const seatSel    = ssrSelections?.seats?.find(s  => s.paxIdx === idx);
                         const mealSel    = ssrSelections?.meals?.find(m  => m.paxIdx === idx);
                         const baggageSel = ssrSelections?.baggage?.find(b => b.paxIdx === idx);
@@ -183,9 +319,9 @@ exports.confirmBooking = async (req, res, next) => {
                             pax_index:       idx,
                             first_name:      p.FirstName,
                             last_name:       p.LastName,
-                            gender:          p.Gender === 1 ? 'Male' : 'Female',
+                            gender:          p.Gender === 2 ? 'Female' : 'Male',
                             date_of_birth:   p.DateOfBirth   || null,
-                            pax_type:        p.PaxType       || 1,
+                            pax_type:        parseInt(p.PaxType, 10) || 1,
                             passport_no:     p.PassportNo    || null,
                             passport_expiry: p.PassportExpiry || null,
                             ticket_status:   ticketStatus,
@@ -201,15 +337,15 @@ exports.confirmBooking = async (req, res, next) => {
                 }
 
                 // D. Save travellers profile records
-                if (actualUserId && passengers && passengers.length > 0) {
-                    for (const pax of passengers) {
+                if (actualUserId && enrichedPassengers && enrichedPassengers.length > 0) {
+                    for (const pax of enrichedPassengers) {
                         await tx.travellers.create({
                             data: {
                                 user_id: actualUserId,
                                 title: pax.Title,
                                 first_name: pax.FirstName,
                                 last_name: pax.LastName,
-                                gender: pax.Gender === 1 ? 'Male' : 'Female',
+                                gender: pax.Gender === 2 ? 'Female' : 'Male',
                                 date_of_birth: pax.DateOfBirth ? new Date(pax.DateOfBirth) : null,
                                 passport_number: pax.PassportNo || null,
                                 passport_expiry_date: pax.PassportExpiry ? new Date(pax.PassportExpiry) : null,

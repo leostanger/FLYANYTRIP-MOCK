@@ -519,7 +519,7 @@ class AdivahaFlightService {
   }
 
   /**
-   * Book a flight (LCC or Non-LCC)
+   * Book a flight (LCC or Non-LCC Hold)
    * POST https://api.adivaha.io/flights/api/
    * @param {Object} bookingPayload - Data for booking
    */
@@ -530,13 +530,20 @@ class AdivahaFlightService {
         TraceId,
         ResultIndex,
         Passengers,
-        ContactDetails
+        ContactDetails,
+        isoneway,
+        isDomestic,
+        IsDomesticReturn
       } = bookingPayload;
 
       const apiPayload = {
-        action: isLCC ? "ticket" : "book",
+        action: isLCC ? "ticketForLcc" : "flightBook",
         TraceId,
         ResultIndex,
+        IsLCC: isLCC ? "1" : "0",
+        isoneway: isoneway || "Yes",
+        isDomestic: isDomestic || "Yes",
+        IsDomesticReturn: IsDomesticReturn || "No",
         Passengers,
         ContactDetails
       };
@@ -544,7 +551,46 @@ class AdivahaFlightService {
       const response = await adivahaClient.post('/', apiPayload);
       return response.data;
     } catch (error) {
-      console.error(`Adivaha ${bookingPayload.isLCC ? 'Ticket' : 'Book'} Error:`, error.response?.data || error.message);
+      console.error(`Adivaha ${bookingPayload.isLCC ? 'ticketForLcc' : 'flightBook'} Error:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Issue a ticket for a Non-LCC flight (after successful hold/book)
+   * POST https://api.adivaha.io/flights/api/
+   * @param {Object} ticketingPayload - Data for ticketing
+   */
+  static async issueNonLccTicket(ticketingPayload) {
+    try {
+      const {
+        PNR,
+        BookingId,
+        order_id,
+        TraceId,
+        isoneway,
+        isDomestic,
+        IsDomesticReturn,
+        Passengers
+      } = ticketingPayload;
+
+      const apiPayload = {
+        action: "ticketForNonLcc",
+        PNR,
+        BookingId,
+        order_id,
+        TraceId,
+        IsLCC: "0",
+        isoneway: isoneway || "Yes",
+        isDomestic: isDomestic || "Yes",
+        IsDomesticReturn: IsDomesticReturn || "No",
+        Passengers
+      };
+
+      const response = await adivahaClient.post('/', apiPayload);
+      return response.data;
+    } catch (error) {
+      console.error('Adivaha ticketForNonLcc Error:', error.response?.data || error.message);
       throw error;
     }
   }
