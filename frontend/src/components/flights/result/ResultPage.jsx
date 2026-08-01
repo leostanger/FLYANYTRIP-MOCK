@@ -175,19 +175,36 @@ export default function ResultPage() {
 
   // Fetch Live Flights from Adivaha API via Backend
   useEffect(() => {
-    const origin = searchParams.get("origin") || "DEL";
-    const destination = searchParams.get("destination") || "BOM";
-    const departureDate = searchParams.get("departureDate") || new Date().toISOString().split("T")[0];
+    const tripType = searchParams.get("tripType") || "one-way";
     const adults = searchParams.get("adults") || "1";
     const children = searchParams.get("children") || "0";
     const cabinClass = searchParams.get("cabinClass") || "Economy";
-    const tripType = searchParams.get("tripType") || "one-way";
-    const returnDate = searchParams.get("returnDate") || "";
 
     const fetchLiveSearch = async () => {
       setLoading(true);
       try {
-        const response = await flightService.searchFlights({ origin, destination, departureDate, adults, children, cabinClass, tripType, returnDate });
+        let response;
+
+        if (tripType === "multi-city") {
+          // Parse segments JSON from URL
+          const rawSegments = searchParams.get("segments") || "[]";
+          let segments = [];
+          try { segments = JSON.parse(decodeURIComponent(rawSegments)); } catch { segments = []; }
+
+          response = await flightService.searchMultiCity({
+            segments,
+            adults: parseInt(adults, 10) || 1,
+            children: parseInt(children, 10) || 0,
+            infants: 0,
+            cabinClass
+          });
+        } else {
+          const origin = searchParams.get("origin") || "DEL";
+          const destination = searchParams.get("destination") || "BOM";
+          const departureDate = searchParams.get("departureDate") || new Date().toISOString().split("T")[0];
+          const returnDate = searchParams.get("returnDate") || "";
+          response = await flightService.searchFlights({ origin, destination, departureDate, adults, children, cabinClass, tripType, returnDate });
+        }
 
         let rawList = [];
         if (Array.isArray(response?.data?.flights)) rawList = response.data.flights;

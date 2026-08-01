@@ -588,9 +588,33 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
   const [showFromDropdown, setShowFromDropdown] = useState(false)
   const [showToDropdown, setShowToDropdown] = useState(false)
 
-  // Flight Date States
-  const todayLocal = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
-  const defaultDepDate = todayLocal
+  // Multi-City Legs State
+  const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
+  const tomorrowStr = (() => { const d = new Date(Date.now() + 24*60*60*1000); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
+  const [multiCityLegs, setMultiCityLegs] = useState([
+    { from: { city: 'Delhi / (DEL)', airport: 'Indira Gandhi Intl', code: 'DEL' }, to: { city: 'Mumbai / (BOM)', airport: 'Chhatrapati Shivaji Intl', code: 'BOM' }, date: todayStr },
+    { from: { city: 'Mumbai / (BOM)', airport: 'Chhatrapati Shivaji Intl', code: 'BOM' }, to: { city: 'Dubai / (DXB)', airport: 'Dubai International Airport', code: 'DXB' }, date: tomorrowStr },
+  ])
+  // which leg is showing a picker: { legIdx, field: 'from'|'to'|'date' } | null
+  const [activeLegPicker, setActiveLegPicker] = useState(null)
+
+  const updateLeg = (legIdx, field, value) => {
+    setMultiCityLegs(prev => prev.map((leg, i) => i === legIdx ? { ...leg, [field]: value } : leg))
+  }
+
+  const addLeg = () => {
+    if (multiCityLegs.length >= 6) return
+    const last = multiCityLegs[multiCityLegs.length - 1]
+    const nextDate = (() => { const d = new Date(last.date || todayStr); d.setDate(d.getDate() + 1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
+    setMultiCityLegs(prev => [...prev, { from: last.to, to: { city: '', airport: '', code: '' }, date: nextDate }])
+  }
+
+  const removeLeg = (legIdx) => {
+    if (multiCityLegs.length <= 2) return
+    setMultiCityLegs(prev => prev.filter((_, i) => i !== legIdx))
+  }
+
+  const defaultDepDate = todayStr
   const defaultRetDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   const [flightDepDate, setFlightDepDate] = useState(defaultDepDate)
   const [flightRetDate, setFlightRetDate] = useState(defaultRetDate)
@@ -739,50 +763,165 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
 
         {/* Destination Field (Hotels / Holiday) or From-To (Flights) */}
         {activeTab === 'flights' ? (
-          <div className="relative flex gap-[8px] items-center w-full">
-            {/* From */}
-            <div
-              className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex flex-col gap-[4px] items-start px-[16px] py-[8px] rounded-[10.134px] flex-1 cursor-pointer hover:border-gray-300 transition-colors"
-              onClick={() => {
-                setShowFromDropdown(true)
-                setShowToDropdown(false)
-                setShowFlightDepCalendar(false)
-                setShowFlightRetCalendar(false)
-                setShowFlightTravellersDropdown(false)
-              }}
-            >
-              <span className="font-satoshi font-normal text-[#666] text-[12px] leading-none">From</span>
-              <span className="font-satoshi font-bold text-[#1a1a1a] text-[18px] leading-normal font-sans">{fromLoc.city}</span>
-              <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">{fromLoc.airport}</span>
-            </div>
+          tripType === 'multi-city' ? (
+            /* ── Multi-City Legs UI ── */
+            <div className="flex flex-col gap-[10px] w-full">
+              {multiCityLegs.map((leg, legIdx) => (
+                <div key={legIdx} className="relative flex flex-col gap-[6px] bg-white/60 border border-[#e8e8e8] rounded-[12px] p-[12px]">
+                  {/* Leg header */}
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-satoshi font-bold text-[11px] text-[#e53935] uppercase tracking-wider">
+                      ✈ Flight {legIdx + 1}
+                    </span>
+                    {multiCityLegs.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() => removeLeg(legIdx)}
+                        className="text-[10px] font-bold text-gray-400 hover:text-red-500 bg-gray-100 hover:bg-red-50 px-2 py-0.5 rounded-full border-none cursor-pointer transition-all"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
 
-            {/* Swap Button */}
-            <button
-              type="button"
-              onClick={handleSwap}
-              className="absolute left-[calc(50%-16.8px)] top-[16px] bg-white border-[#e8e8e8] border-[0.672px] rounded-full w-[33.61px] h-[33.61px] flex items-center justify-center cursor-pointer hover:border-gray-400 z-10"
-              style={{ transform: `rotate(${isRotated ? 180 : 0}deg)`, transition: 'transform 0.5s' }}
-              aria-label="Swap locations"
-            >
-              <SwapIcon className="w-[13.3px] h-[11.2px] text-[#e53935]" />
-            </button>
+                  {/* From / To row */}
+                  <div className="relative flex gap-[8px] items-center">
+                    {/* From */}
+                    <div
+                      className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1px] flex flex-col gap-[2px] items-start px-[12px] py-[7px] rounded-[10px] flex-1 cursor-pointer hover:border-[#e53935]/40 transition-colors"
+                      onClick={() => setActiveLegPicker({ legIdx, field: 'from' })}
+                    >
+                      <span className="font-satoshi font-normal text-[#666] text-[11px] leading-none">From</span>
+                      <span className="font-satoshi font-bold text-[#1a1a1a] text-[15px] leading-tight font-sans">
+                        {leg.from.code ? leg.from.city : <span className="text-gray-400 font-normal text-[13px]">Select city</span>}
+                      </span>
+                      {leg.from.code && <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">{leg.from.airport}</span>}
+                    </div>
 
-            {/* To */}
-            <div
-              className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex flex-col gap-[4px] items-start px-[20px] py-[8px] rounded-[10.134px] flex-1 cursor-pointer hover:border-gray-300 transition-colors"
-              onClick={() => {
-                setShowToDropdown(true)
-                setShowFromDropdown(false)
-                setShowFlightDepCalendar(false)
-                setShowFlightRetCalendar(false)
-                setShowFlightTravellersDropdown(false)
-              }}
-            >
-              <span className="font-satoshi font-normal text-[#666] text-[12px] leading-none">To</span>
-              <span className="font-satoshi font-bold text-[#1a1a1a] text-[18px] leading-normal font-sans">{toLoc.city}</span>
-              <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">{toLoc.airport}</span>
+                    {/* Swap mini-button */}
+                    <button
+                      type="button"
+                      onClick={() => { const tmp = leg.from; updateLeg(legIdx, 'from', leg.to); updateLeg(legIdx, 'to', tmp) }}
+                      className="absolute left-[calc(50%-13px)] top-[12px] bg-white border-[#e8e8e8] border rounded-full w-[26px] h-[26px] flex items-center justify-center cursor-pointer hover:border-gray-400 z-10 shrink-0"
+                      aria-label="Swap"
+                    >
+                      <SwapIcon className="w-[11px] h-[9px] text-[#e53935]" />
+                    </button>
+
+                    {/* To */}
+                    <div
+                      className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1px] flex flex-col gap-[2px] items-start px-[12px] py-[7px] rounded-[10px] flex-1 cursor-pointer hover:border-[#e53935]/40 transition-colors"
+                      onClick={() => setActiveLegPicker({ legIdx, field: 'to' })}
+                    >
+                      <span className="font-satoshi font-normal text-[#666] text-[11px] leading-none">To</span>
+                      <span className="font-satoshi font-bold text-[#1a1a1a] text-[15px] leading-tight font-sans">
+                        {leg.to.code ? leg.to.city : <span className="text-gray-400 font-normal text-[13px]">Select city</span>}
+                      </span>
+                      {leg.to.code && <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">{leg.to.airport}</span>}
+                    </div>
+
+                    {/* Date */}
+                    <div
+                      className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1px] flex flex-col gap-[2px] items-start px-[12px] py-[7px] rounded-[10px] cursor-pointer hover:border-[#e53935]/40 transition-colors shrink-0"
+                      onClick={() => setActiveLegPicker({ legIdx, field: 'date' })}
+                    >
+                      <span className="font-satoshi font-normal text-[#666] text-[11px] leading-none">Date</span>
+                      <span className="font-satoshi font-bold text-[#1a1a1a] text-[15px] font-sans">{formatDate(leg.date).date}</span>
+                      <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none">{formatDate(leg.date).dayName}</span>
+                    </div>
+                  </div>
+
+                  {/* Leg Airport Pickers */}
+                  {activeLegPicker?.legIdx === legIdx && activeLegPicker?.field === 'from' && (
+                    <AirportPickerModal
+                      title={`Flight ${legIdx + 1} — Departure City`}
+                      onSelect={(airport) => { updateLeg(legIdx, 'from', airport); setActiveLegPicker(null) }}
+                      onClose={() => setActiveLegPicker(null)}
+                    />
+                  )}
+                  {activeLegPicker?.legIdx === legIdx && activeLegPicker?.field === 'to' && (
+                    <AirportPickerModal
+                      title={`Flight ${legIdx + 1} — Arrival City`}
+                      onSelect={(airport) => { updateLeg(legIdx, 'to', airport); setActiveLegPicker(null) }}
+                      onClose={() => setActiveLegPicker(null)}
+                    />
+                  )}
+                  {activeLegPicker?.legIdx === legIdx && activeLegPicker?.field === 'date' && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setActiveLegPicker(null)} />
+                      <CustomDatePicker
+                        title={`Flight ${legIdx + 1} — Departure Date`}
+                        selectedDate={leg.date}
+                        onChange={(dateStr) => { updateLeg(legIdx, 'date', dateStr); setActiveLegPicker(null) }}
+                        onClose={() => setActiveLegPicker(null)}
+                        minDate={legIdx > 0 ? multiCityLegs[legIdx - 1].date : undefined}
+                      />
+                    </>
+                  )}
+                </div>
+              ))}
+
+              {/* Add City Button */}
+              {multiCityLegs.length < 6 && (
+                <button
+                  type="button"
+                  onClick={addLeg}
+                  className="flex items-center gap-2 text-[#e53935] font-satoshi font-bold text-[13px] bg-[#FCECEC] hover:bg-red-100 border border-[#e53935]/30 rounded-[10px] px-4 py-2.5 cursor-pointer transition-all self-start"
+                >
+                  <span className="text-[18px] leading-none">+</span>
+                  Add City
+                  <span className="text-[10px] text-[#e53935]/60 font-normal ml-1">({multiCityLegs.length}/6)</span>
+                </button>
+              )}
             </div>
-          </div>
+          ) : (
+            /* ── One-Way / Round-Trip From-To ── */
+            <div className="relative flex gap-[8px] items-center w-full">
+              {/* From */}
+              <div
+                className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex flex-col gap-[4px] items-start px-[16px] py-[8px] rounded-[10.134px] flex-1 cursor-pointer hover:border-gray-300 transition-colors"
+                onClick={() => {
+                  setShowFromDropdown(true)
+                  setShowToDropdown(false)
+                  setShowFlightDepCalendar(false)
+                  setShowFlightRetCalendar(false)
+                  setShowFlightTravellersDropdown(false)
+                }}
+              >
+                <span className="font-satoshi font-normal text-[#666] text-[12px] leading-none">From</span>
+                <span className="font-satoshi font-bold text-[#1a1a1a] text-[18px] leading-normal font-sans">{fromLoc.city}</span>
+                <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">{fromLoc.airport}</span>
+              </div>
+
+              {/* Swap Button */}
+              <button
+                type="button"
+                onClick={handleSwap}
+                className="absolute left-[calc(50%-16.8px)] top-[16px] bg-white border-[#e8e8e8] border-[0.672px] rounded-full w-[33.61px] h-[33.61px] flex items-center justify-center cursor-pointer hover:border-gray-400 z-10"
+                style={{ transform: `rotate(${isRotated ? 180 : 0}deg)`, transition: 'transform 0.5s' }}
+                aria-label="Swap locations"
+              >
+                <SwapIcon className="w-[13.3px] h-[11.2px] text-[#e53935]" />
+              </button>
+
+              {/* To */}
+              <div
+                className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex flex-col gap-[4px] items-start px-[20px] py-[8px] rounded-[10.134px] flex-1 cursor-pointer hover:border-gray-300 transition-colors"
+                onClick={() => {
+                  setShowToDropdown(true)
+                  setShowFromDropdown(false)
+                  setShowFlightDepCalendar(false)
+                  setShowFlightRetCalendar(false)
+                  setShowFlightTravellersDropdown(false)
+                }}
+              >
+                <span className="font-satoshi font-normal text-[#666] text-[12px] leading-none">To</span>
+                <span className="font-satoshi font-bold text-[#1a1a1a] text-[18px] leading-normal font-sans">{toLoc.city}</span>
+                <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">{toLoc.airport}</span>
+              </div>
+            </div>
+          )
+
         ) : activeTab === 'hotels' ? (
           <div className="relative flex flex-col gap-[8px] items-stretch w-full">
             <div
@@ -893,7 +1032,7 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
         )}
 
         {/* Departure-Return (Flights) OR Checkin-Checkout (Hotels / Holiday) */}
-        {activeTab === 'flights' ? (
+        {activeTab === 'flights' && tripType !== 'multi-city' ? (
           <div className="flex gap-[8px] items-center relative w-full font-sans text-left">
             {/* Departure Date */}
             <div className="flex-1">
@@ -1243,6 +1382,20 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
               } else if (activeTab === 'holiday') {
                 console.log('Search clicked for holiday:', { holidayDest, holidayBudget, holidayStartDate, holidayEndDate, holidayTravelers })
                 navigate(`/holidays?dest=${encodeURIComponent(holidayDest)}&budget=${encodeURIComponent(holidayBudget)}&start=${holidayStartDate}&end=${holidayEndDate}&travelers=${holidayTravelers}`)
+              } else if (tripType === 'multi-city') {
+                // Validate all legs have from + to
+                const invalid = multiCityLegs.find(leg => !leg.from.code || !leg.to.code)
+                if (invalid) {
+                  alert('Please select departure and arrival city for all flights.')
+                  return
+                }
+                const segments = multiCityLegs.map(leg => ({
+                  from: leg.from.code,
+                  to: leg.to.code,
+                  departureDate: leg.date,
+                  travelClass: flightCabinClass
+                }))
+                navigate(`/flights?tripType=multi-city&segments=${encodeURIComponent(JSON.stringify(segments))}&adults=${flightAdults}&children=${flightChildren}&cabinClass=${encodeURIComponent(flightCabinClass)}`)
               } else {
                 const origin = fromLoc.code || 'DEL';
                 const destination = toLoc.code || 'BOM';

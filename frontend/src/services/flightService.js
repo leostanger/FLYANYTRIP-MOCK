@@ -1,10 +1,19 @@
 import { fetchAPI } from './api';
 
 export const flightService = {
-  // Search flights with criteria
+  // Search flights with criteria (one-way / round-trip)
   searchFlights: async (searchParams) => {
     const query = new URLSearchParams(searchParams).toString();
     return fetchAPI(`/flights/search?${query}`);
+  },
+
+  // Search multi-city flights — POST with segments array
+  searchMultiCity: async ({ segments, adults = 1, children = 0, infants = 0, cabinClass = 'Economy' }) => {
+    return fetchAPI('/flights/search/multicity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ segments, adults, children, infants, cabinClass }),
+    });
   },
 
   // Search locations (Airports/Cities) from Adivaha API
