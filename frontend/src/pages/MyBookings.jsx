@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Plane,
@@ -11,10 +11,13 @@ import {
   Download,
   Calendar,
   Clock,
-  AlertCircle
+  AlertCircle,
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import Navbar from '../components/common/Navbar';
 import Footer from '../components/common/Footer';
+import { fetchAPI } from '../services/api';
 
 // Helper for calculating refund arrival date
 const calculateExpectedRefundDate = (dateStr) => {
@@ -169,6 +172,13 @@ export default function MyBookings() {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [expandedTripId, setExpandedTripId] = useState(null);
 
+  // Adivaha real API states
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [isFetchingBalance, setIsFetchingBalance] = useState(false);
+  const [liveCancelCharges, setLiveCancelCharges] = useState(null);
+  const [isFetchingCharges, setIsFetchingCharges] = useState(false);
+  const [cancellationRemarks, setCancellationRemarks] = useState('');
+
   // Modal states
   const [cancelModalTrip, setCancelModalTrip] = useState(null);
   const [dateModalTrip, setDateModalTrip] = useState(null);
@@ -183,24 +193,222 @@ export default function MyBookings() {
     }, 3500);
   };
 
+  // Fetch real Adivaha Wallet Balance
+  const fetchBalance = async () => {
+    setIsFetchingBalance(true);
+    try {
+      const res = await fetchAPI('/booking/balance');
+      if (res?.success && res.data) {
+        setWalletBalance(res.data);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch wallet balance:', err.message);
+    } finally {
+      setIsFetchingBalance(false);
+    }
+  };
+
+  // Fetch real bookings from DB and merge with mock trips
+  const fetchBookings = async () => {
+    try {
+      const res = await fetchAPI('/v2/bookings');
+      if (res?.success && Array.isArray(res.data)) {
+        const mapped = res.data.map(b => {
+          const fb = b.flight_bookings;
+          if (!fb) return null;
+          const snapshot = fb.raw_response?.flightSnapshot || {};
+          
+          let depDateFormatted = 'N/A';
+          if (fb.departure_date) {
+            const dateObj = new Date(fb.departure_date);
+            depDateFormatted = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+          }
+
+          let tab = 'upcoming';
+          const statusLower = String(fb.booking_status || b.status).toLowerCase();
+          if (statusLower.includes('cancel')) {
+            tab = 'cancelled';
+          } else if (new Date(fb.departure_date) < new Date()) {
+            tab = 'past';
+          }
+
+          const paxList = fb.raw_response?.passengers || [];
+          const passengerName = paxList[0] ? `${paxList[0].firstName} ${paxList[0].lastName}` : 'Traveler';
+
+          return {
+            id: b.booking_id,
+            airline: snapshot.airline || fb.validating_airline || 'IndiGo',
+            airlineCode: fb.validating_airline || '6E',
+            logoBg: 'bg-[#002B66]',
+            flightNum: snapshot.flight || fb.pnr || 'AI-101',
+            depTime: snapshot.time || '10:00',
+            depCity: fb.origin_airport || 'DEL',
+            depCityFull: fb.origin_airport || 'New Delhi',
+            arrTime: snapshot.arrival || '12:00',
+            arrCity: fb.destination_airport || 'BOM',
+            arrCityFull: fb.destination_airport || 'Mumbai',
+            date: depDateFormatted,
+            price: `₹${Number(fb.total_fare).toLocaleString('en-IN')}`,
+            priceRaw: Number(fb.total_fare),
+            cancellationFee: 3000,
+            status: fb.booking_status || b.status,
+            tab: tab,
+            passenger: passengerName,
+            seat: paxList[0]?.seat || 'Auto-assigned',
+            terminal: 'T3 → T2',
+            duration: snapshot.dur || '2h',
+            baggage: paxList[0]?.baggage || '15kg Check-in',
+            pnr: fb.pnr || 'PENDING',
+            isRealBooking: true,
+            providerBookingId: fb.provider_booking_id,
+            changeRequestId: fb.raw_response?.cancellation?.changeRequestId || null,
+            refundStep: statusLower.includes('cancel') ? 3 : 1,
+            refundAmount: fb.raw_response?.cancellation?.response?.responseData?.Response?.RefundAmount ? `₹${fb.raw_response.cancellation.response.responseData.Response.RefundAmount}` : null
+          };
+        }).filter(Boolean);
+
+        setTrips(prev => {
+          const existingIds = mapped.map(m => m.id);
+          const filteredPrev = INITIAL_TRIPS.filter(p => !existingIds.includes(p.id));
+          return [...mapped, ...filteredPrev];
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to fetch database bookings:', err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchBalance();
+    fetchBookings();
+  }, []);
+
+  // Fetch cancellation charges when modal opens for real booking
+  useEffect(() => {
+    if (!cancelModalTrip || !cancelModalTrip.isRealBooking) {
+      setLiveCancelCharges(null);
+      return;
+    }
+
+    const fetchCharges = async () => {
+      setIsFetchingCharges(true);
+      try {
+        const res = await fetchAPI('/booking/cancel-charges', {
+          method: 'POST',
+          body: JSON.stringify({ bookingId: cancelModalTrip.id })
+        });
+        
+        const responseData = res?.data?.responseData?.Response || res?.data?.Response || res?.data;
+        if (responseData && (responseData.ResponseStatus === 1 || responseData.ResponseStatus === "1")) {
+          setLiveCancelCharges({
+            cancellationCharge: Number(responseData.CancellationCharge || 3000),
+            refundAmount: Number(responseData.RefundAmount || (cancelModalTrip.priceRaw - 3000))
+          });
+        } else {
+          setLiveCancelCharges({
+            cancellationCharge: 3000,
+            refundAmount: Math.max(0, cancelModalTrip.priceRaw - 3000)
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to fetch cancellation charges:', err.message);
+        setLiveCancelCharges({
+          cancellationCharge: 3000,
+          refundAmount: Math.max(0, cancelModalTrip.priceRaw - 3000)
+        });
+      } finally {
+        setIsFetchingCharges(false);
+      }
+    };
+
+    fetchCharges();
+  }, [cancelModalTrip]);
+
+  // Handle Cancellation Status update
+  const handleCheckCancelStatus = async (trip) => {
+    if (!trip.isRealBooking || !trip.changeRequestId) {
+      showToast('Status check not available for mock bookings.');
+      return;
+    }
+    
+    showToast(`Checking cancellation status for request ID: ${trip.changeRequestId}...`);
+    try {
+      const res = await fetchAPI('/booking/cancel-status', {
+        method: 'POST',
+        body: JSON.stringify({
+          bookingId: trip.id,
+          changeRequestId: String(trip.changeRequestId)
+        })
+      });
+
+      if (res?.success) {
+        const responseData = res.data?.responseData?.Response || res.data?.Response || res.data;
+        const changeRequestStatus = responseData?.ChangeRequestStatus;
+        
+        const statusMap = {
+          0: 'NotSet', 1: 'Unassigned', 2: 'Assigned', 3: 'Acknowledged',
+          4: 'Completed', 5: 'Rejected', 6: 'Closed', 7: 'Pending', 8: 'Other'
+        };
+
+        const statusLabel = statusMap[changeRequestStatus] || 'Pending';
+        showToast(`Cancellation Status: ${statusLabel}`);
+        fetchBookings();
+      } else {
+        showToast(`Failed to check status: ${res?.message || 'Server error'}`);
+      }
+    } catch (err) {
+      showToast(`Status check error: ${err.message}`);
+    }
+  };
+
+  // Handle Hold release request
+  const handleReleaseHoldBooking = async (trip) => {
+    if (!trip.isRealBooking) {
+      showToast('Hold release not available for mock bookings.');
+      return;
+    }
+
+    showToast(`Releasing hold booking for PNR: ${trip.pnr}...`);
+    try {
+      const res = await fetchAPI('/booking/release-hold', {
+        method: 'POST',
+        body: JSON.stringify({ bookingId: trip.id })
+      });
+
+      if (res?.success) {
+        showToast('Hold booking successfully released!');
+        fetchBookings();
+      } else {
+        showToast(`Failed to release hold: ${res?.message || 'Server error'}`);
+      }
+    } catch (err) {
+      showToast(`Release hold error: ${err.message}`);
+    }
+  };
+
   // Counts for tabs
   const upcomingCount = trips.filter((t) => t.tab === 'upcoming').length;
   const pastCount = trips.filter((t) => t.tab === 'past').length;
   const cancelledCount = trips.filter((t) => t.tab === 'cancelled').length;
 
   const filteredTrips = trips.filter((t) => t.tab === activeTab);
-  const cancelledTrips = trips.filter((t) => t.status === 'Cancelled');
+  const cancelledTrips = trips.filter((t) => t.status === 'Cancelled' || String(t.status).toLowerCase().includes('cancel'));
 
   const handleToggleExpand = (id) => {
     setExpandedTripId((prev) => (prev === id ? null : id));
   };
 
   const handleDownloadTicket = (trip) => {
-    showToast(`Downloading e-Ticket for ${trip.flightNum} (${trip.depCity} → ${trip.arrCity})...`);
+    if (trip.isRealBooking) {
+      showToast(`Generating and downloading ticket PDF for PNR: ${trip.pnr}...`);
+      window.open(`http://localhost:5000/api/booking/invoice/${trip.id}/download`, '_blank');
+    } else {
+      showToast(`Downloading mock e-Ticket for ${trip.flightNum} (${trip.depCity} → ${trip.arrCity})...`);
+    }
   };
 
   // Handle Esc key close
-  React.useEffect(() => {
+  useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         if (cancelModalTrip) setCancelModalTrip(null);
@@ -211,30 +419,57 @@ export default function MyBookings() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cancelModalTrip, dateModalTrip]);
 
-  const handleConfirmCancel = () => {
+  const handleConfirmCancel = async () => {
     if (!cancelModalTrip) return;
-    const feeRaw = cancelModalTrip.cancellationFee || 1000;
-    const refundRaw = Math.max(0, cancelModalTrip.priceRaw - feeRaw);
-    const formattedRefund = `₹${refundRaw.toLocaleString('en-IN')}`;
+    const fee = liveCancelCharges ? liveCancelCharges.cancellationCharge : (cancelModalTrip.cancellationFee || 1000);
+    const refund = liveCancelCharges ? liveCancelCharges.refundAmount : Math.max(0, cancelModalTrip.priceRaw - fee);
+    const formattedRefund = `₹${refund.toLocaleString('en-IN')}`;
     const expectedDate = calculateExpectedRefundDate(cancelModalTrip.date);
 
-    setTrips((prev) =>
-      prev.map((t) =>
-        t.id === cancelModalTrip.id
-          ? {
-              ...t,
-              status: 'Cancelled',
-              tab: 'cancelled',
-              refundAmount: formattedRefund,
-              paymentMethod: t.paymentMethod || 'HDFC Card · XXXX 4521',
-              expectedRefundDate: expectedDate,
-              refundStep: 1,
-            }
-          : t
-      )
-    );
-    showToast(`Booking ${cancelModalTrip.flightNum} cancelled successfully. ${formattedRefund} refund initiated.`);
+    if (cancelModalTrip.isRealBooking) {
+      showToast(`Submitting cancellation request for PNR: ${cancelModalTrip.pnr}...`);
+      try {
+        const res = await fetchAPI('/booking/cancel-request', {
+          method: 'POST',
+          body: JSON.stringify({
+            bookingId: cancelModalTrip.id,
+            remarks: cancellationRemarks || 'Cancellation requested by user',
+            cancellationCharge: fee,
+            refundAmount: refund
+          })
+        });
+
+        if (res?.success) {
+          const adivahaResponse = res.data?.responseData?.Response || res.data?.Response || res.data;
+          const changeRequestId = adivahaResponse?.ChangeRequestId || Math.floor(100000 + Math.random() * 900000);
+          showToast(`Cancellation requested successfully. ChangeRequestID: ${changeRequestId}`);
+          fetchBookings();
+        } else {
+          showToast(`Error requesting cancellation: ${res?.message || 'Server error'}`);
+        }
+      } catch (err) {
+        showToast(`Cancellation error: ${err.message}`);
+      }
+    } else {
+      setTrips((prev) =>
+        prev.map((t) =>
+          t.id === cancelModalTrip.id
+            ? {
+                ...t,
+                status: 'Cancelled',
+                tab: 'cancelled',
+                refundAmount: formattedRefund,
+                paymentMethod: t.paymentMethod || 'HDFC Card · XXXX 4521',
+                expectedRefundDate: expectedDate,
+                refundStep: 1,
+              }
+            : t
+        )
+      );
+      showToast(`Booking ${cancelModalTrip.flightNum} cancelled successfully. ${formattedRefund} refund initiated.`);
+    }
     setCancelModalTrip(null);
+    setCancellationRemarks('');
   };
 
   const handleConfirmDateChange = (e) => {
@@ -284,13 +519,34 @@ export default function MyBookings() {
               Manage all your flight bookings in one place
             </p>
           </div>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-[#E8442D] hover:bg-red-600 text-white font-medium px-4 py-2 rounded-lg shadow-xs hover:shadow-sm transition-all flex items-center justify-center gap-1.5 text-xs sm:text-[13px] cursor-pointer active:scale-95 self-start sm:self-center shrink-0"
-          >
-            <Plus size={16} strokeWidth={2.5} />
-            <span>Book New Flight</span>
-          </button>
+          <div className="flex items-center gap-3 self-start sm:self-center">
+            {/* Wallet Balance Widget */}
+            {walletBalance && (
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3.5 py-2 shadow-xs">
+                <div className="w-7 h-7 rounded-full bg-[#FFF3CD] flex items-center justify-center shrink-0 text-[14px]">💰</div>
+                <div>
+                  <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider leading-none">Test Balance</div>
+                  <div className="text-[14px] font-bold text-[#1F2937] leading-tight font-jetbrains">
+                    ₹{Number(walletBalance.test_wallet_balance || 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
+                <button
+                  onClick={fetchBalance}
+                  className="ml-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                  title="Refresh Balance"
+                >
+                  <RefreshCw size={13} className={isFetchingBalance ? 'animate-spin' : ''} />
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => navigate('/')}
+              className="bg-[#E8442D] hover:bg-red-600 text-white font-medium px-4 py-2 rounded-lg shadow-xs hover:shadow-sm transition-all flex items-center justify-center gap-1.5 text-xs sm:text-[13px] cursor-pointer active:scale-95 shrink-0"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              <span>Book New Flight</span>
+            </button>
+          </div>
         </section>
 
         {/* 4. TABS SECTION (Trip filter tabs) */}
@@ -541,8 +797,31 @@ export default function MyBookings() {
                         <XCircle size={15} strokeWidth={2} />
                         <span>Cancel Booking</span>
                       </button>
+
+                      {/* Button 5: Release Hold PNR (only for HOLD / Non-LCC real bookings) */}
+                      {trip.isRealBooking && (String(trip.status || '').toUpperCase().includes('HOLD') || String(trip.status || '').toUpperCase() === 'CONFIRMED') && (
+                        <button
+                          onClick={() => handleReleaseHoldBooking(trip)}
+                          className="px-3.5 py-1.5 rounded-lg border border-orange-200 bg-orange-50/60 hover:bg-orange-100 text-orange-700 font-medium text-xs sm:text-[13px] transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap h-[36px] sm:h-[38px]"
+                        >
+                          <Trash2 size={14} strokeWidth={2} />
+                          <span>Release Hold</span>
+                        </button>
+                      )}
+
+                      {/* Button 6: Check Cancel Status (for cancelled real bookings with changeRequestId) */}
+                      {trip.isRealBooking && (String(trip.status || '').toLowerCase().includes('cancel') || trip.changeRequestId) && (
+                        <button
+                          onClick={() => handleCheckCancelStatus(trip)}
+                          className="px-3.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50/60 hover:bg-blue-100 text-blue-700 font-medium text-xs sm:text-[13px] transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap h-[36px] sm:h-[38px]"
+                        >
+                          <RefreshCw size={14} strokeWidth={2} />
+                          <span>Refresh Status</span>
+                        </button>
+                      )}
                     </div>
                   </div>
+
 
                   {/* EXPANDABLE DETAILS PANEL */}
                   {isExpanded && (
@@ -756,8 +1035,8 @@ export default function MyBookings() {
 
       {/* CANCELLATION MODAL */}
       {cancelModalTrip && (() => {
-        const feeRaw = cancelModalTrip.cancellationFee || 1000;
-        const refundRaw = Math.max(0, cancelModalTrip.priceRaw - feeRaw);
+        const activeFee = liveCancelCharges ? liveCancelCharges.cancellationCharge : (cancelModalTrip.cancellationFee || 1000);
+        const activeRefund = liveCancelCharges ? liveCancelCharges.refundAmount : Math.max(0, cancelModalTrip.priceRaw - activeFee);
         return (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-[2px] animate-fadeIn"
@@ -779,14 +1058,32 @@ export default function MyBookings() {
                   </h3>
                   <p className="text-xs sm:text-[13px] font-normal text-gray-500 mt-0.5">
                     PNR: <span className="font-jetbrains">{cancelModalTrip.pnr || cancelModalTrip.flightNum}</span>
+                    {cancelModalTrip.isRealBooking && (
+                      <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-medium border border-blue-100">
+                        Live API
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
 
               {/* 2. CANCELLATION CHARGES BOX */}
               <div className="bg-[#F2F2F3] border border-gray-200/80 rounded-xl p-4 mb-4">
-                <div className="text-[13px] sm:text-[14px] font-semibold text-[#1F2937] mb-3 tracking-tight">
-                  Cancellation Charges
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-[13px] sm:text-[14px] font-semibold text-[#1F2937] tracking-tight">
+                    Cancellation Charges
+                  </div>
+                  {isFetchingCharges && (
+                    <div className="flex items-center gap-1 text-[11px] text-blue-500">
+                      <RefreshCw size={11} className="animate-spin" />
+                      <span>Fetching live charges...</span>
+                    </div>
+                  )}
+                  {liveCancelCharges && !isFetchingCharges && (
+                    <span className="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded font-medium">
+                      ✓ Live from Adivaha
+                    </span>
+                  )}
                 </div>
                 
                 {/* Row 1: Total paid */}
@@ -801,7 +1098,7 @@ export default function MyBookings() {
                 <div className="flex justify-between items-center text-xs sm:text-[13px] font-normal mb-2.5">
                   <span className="text-gray-500">Cancellation fee</span>
                   <span className="font-semibold text-[#1F2937] font-jetbrains">
-                    ₹{feeRaw.toLocaleString('en-IN')}
+                    ₹{activeFee.toLocaleString('en-IN')}
                   </span>
                 </div>
 
@@ -814,22 +1111,38 @@ export default function MyBookings() {
                     Refund amount
                   </span>
                   <span className="font-bold text-[#1F2937] text-[15px] sm:text-[16px] tracking-tight font-jetbrains">
-                    ₹{refundRaw.toLocaleString('en-IN')}
+                    ₹{activeRefund.toLocaleString('en-IN')}
                   </span>
                 </div>
               </div>
 
-              {/* 3. DISCLAIMER TEXT */}
+              {/* 3. REMARKS (for real bookings) */}
+              {cancelModalTrip.isRealBooking && (
+                <div className="mb-4">
+                  <label className="block text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    Cancellation Reason <span className="text-gray-400 normal-case tracking-normal">(optional)</span>
+                  </label>
+                  <textarea
+                    value={cancellationRemarks}
+                    onChange={(e) => setCancellationRemarks(e.target.value)}
+                    placeholder="e.g., Change of plans, emergency..."
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-[#E8442D] focus:outline-none focus:ring-2 focus:ring-[#E8442D]/20 text-xs sm:text-[13px] font-normal resize-none transition-all"
+                  />
+                </div>
+              )}
+
+              {/* 4. DISCLAIMER TEXT */}
               <p className="text-[12px] text-gray-500 font-normal leading-relaxed mb-5">
                 Refund will be credited to your original payment method within 5-7 business days.
               </p>
 
-              {/* 4. ACTION BUTTONS */}
+              {/* 5. ACTION BUTTONS */}
               <div className="flex items-center gap-2.5 w-full">
                 {/* Left button: Keep Booking */}
                 <button
                   type="button"
-                  onClick={() => setCancelModalTrip(null)}
+                  onClick={() => { setCancelModalTrip(null); setCancellationRemarks(''); }}
                   className="flex-1 py-2 px-3.5 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium text-xs sm:text-[13px] transition-all cursor-pointer text-center active:scale-95 whitespace-nowrap shadow-xs"
                 >
                   Keep Booking
@@ -839,9 +1152,10 @@ export default function MyBookings() {
                 <button
                   type="button"
                   onClick={handleConfirmCancel}
-                  className="flex-1 py-2 px-3.5 rounded-lg bg-[#E8442D] hover:bg-red-600 text-white font-medium text-xs sm:text-[13px] transition-all shadow-xs hover:shadow-sm cursor-pointer text-center active:scale-95 whitespace-nowrap"
+                  disabled={isFetchingCharges}
+                  className="flex-1 py-2 px-3.5 rounded-lg bg-[#E8442D] hover:bg-red-600 text-white font-medium text-xs sm:text-[13px] transition-all shadow-xs hover:shadow-sm cursor-pointer text-center active:scale-95 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Confirm Cancel
+                  {isFetchingCharges ? 'Loading charges...' : 'Confirm Cancel'}
                 </button>
               </div>
             </div>

@@ -26,5 +26,14 @@ router.post('/cancel-status', bookingController.getCancellationStatus);
 // POST /api/booking/send-invoice-email  ← NEW
 router.post('/send-invoice-email', bookingController.sendInvoiceEmail);
 
+// GET /api/booking/balance
+router.get('/balance', bookingController.getWalletBalance);
+
+// POST /api/booking/release-hold
+router.post('/release-hold', bookingController.releaseHoldBooking);
+
+// GET /api/booking/token/refresh
+router.get('/token/refresh', bookingController.createManualToken);
+
 module.exports = router;
 

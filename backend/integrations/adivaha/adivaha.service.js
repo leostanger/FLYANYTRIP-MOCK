@@ -274,16 +274,16 @@ class AdivahaFlightService {
       const formatDate = (dateStr) => this.formatDate(dateStr);
 
       const categoryMap = {
-        'Economy': 3,
-        'Premium Economy': 4,
-        'Business': 5,
+        'Economy': 2,
+        'Premium Economy': 3,
+        'Business': 4,
         'First Class': 6
       };
 
       const mappedSegments = segments.map(seg => ({
         Origin: seg.from,
         Destination: seg.to,
-        FlightCabinClass: categoryMap[seg.travelClass || 'Economy'] || 3,
+        FlightCabinClass: categoryMap[seg.travelClass || 'Economy'] || 2,
         PreferredDepartureTime: formatDate(seg.departureDate),
         PreferredArrivalTime: formatDate(seg.departureDate)
       }));
@@ -696,6 +696,65 @@ class AdivahaFlightService {
       return response.data;
     } catch (error) {
       console.error('Adivaha getCancellationStatus Error:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get wallet balance
+   * GET https://api.adivaha.io/flights/api/?action=GetWalletBalance
+   */
+  static async getWalletBalance() {
+    try {
+      const response = await adivahaClient.get('/', {
+        params: {
+          action: 'GetWalletBalance'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Adivaha getWalletBalance Error:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Release or cancel hold booking
+   * POST https://api.adivaha.io/flights/api/?action=ReleasePNRRequest
+   */
+  static async releaseHoldBooking(payload) {
+    try {
+      const apiPayload = {
+        action: "ReleasePNRRequest",
+        BookingId: String(payload.BookingId),
+        order_id: payload.order_id,
+        Source: Number(payload.Source || 4)
+      };
+      const response = await adivahaClient.post('/?action=ReleasePNRRequest', apiPayload);
+      return response.data;
+    } catch (error) {
+      console.error('Adivaha releaseHoldBooking Error:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Manually trigger token creation / refresh
+   * GET https://api.adivaha.io/flights/api/?action=createToken
+   */
+  static async createManualToken() {
+    try {
+      const response = await axios.get(`${ADIVAHA_BASE_URL}/?action=createToken`, {
+        headers: {
+          'Accept': 'application/json',
+          'Accept-Encoding': 'gzip',
+          'PID': PID,
+          'x-api-key': API_KEY
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Adivaha createManualToken Error:', error.response?.data || error.message);
       throw error;
     }
   }

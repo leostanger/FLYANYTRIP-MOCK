@@ -336,26 +336,30 @@ exports.confirmBooking = async (req, res, next) => {
                     await tx.flight_booking_passengers.createMany({ data: paxRows });
                 }
 
-                // D. Save travellers profile records
-                if (actualUserId && enrichedPassengers && enrichedPassengers.length > 0) {
-                    for (const pax of enrichedPassengers) {
-                        await tx.travellers.create({
-                            data: {
-                                user_id: actualUserId,
-                                title: pax.Title,
-                                first_name: pax.FirstName,
-                                last_name: pax.LastName,
-                                gender: pax.Gender === 2 ? 'Female' : 'Male',
-                                date_of_birth: pax.DateOfBirth ? new Date(pax.DateOfBirth) : null,
-                                passport_number: pax.PassportNo || null,
-                                passport_expiry_date: pax.PassportExpiry ? new Date(pax.PassportExpiry) : null,
-                            }
-                        });
-                    }
-                }
-
+                // D. Save travellers profile records OUTSIDE the transaction (non-critical)
+                // Moved outside to avoid transaction timeout — see createMany call below
                 return { booking, flightBooking };
+            }, {
+                timeout: 30000 // 30 second timeout — prevents 500 error on slow Adivaha responses
             });
+
+            // D. Save travellers profile records OUTSIDE the transaction (non-critical)
+            // Using fire-and-forget createMany so it never blocks the booking response
+            if (actualUserId && enrichedPassengers && enrichedPassengers.length > 0) {
+                const travellerRows = enrichedPassengers.map(pax => ({
+                    user_id:              actualUserId,
+                    title:                pax.Title,
+                    first_name:           pax.FirstName,
+                    last_name:            pax.LastName,
+                    gender:               pax.Gender === 2 ? 'Female' : 'Male',
+                    date_of_birth:        pax.DateOfBirth ? new Date(pax.DateOfBirth) : null,
+                    passport_number:      pax.PassportNo || null,
+                    passport_expiry_date: pax.PassportExpiry ? new Date(pax.PassportExpiry) : null,
+                }));
+
+                prisma.travellers.createMany({ data: travellerRows, skipDuplicates: true })
+                    .catch(err => console.warn('Non-critical: travellers save failed:', err.message));
+            }
 
         } catch (dbError) {
             console.error('Database connection/query failed:', dbError.message);
@@ -1416,6 +1420,120 @@ exports.sendInvoiceEmail = async (req, res) => {
     } catch (error) {
         console.error('Send Invoice Email Error:', error);
         return res.status(500).json({ success: false, message: 'Failed to send email', error: error.message });
+    }
+};
+
+/**
+ * Get Adivaha Wallet Balance
+ */
+exports.getWalletBalance = async (req, res, next) => {
+    try {
+        const adivahaRes = await AdivahaFlightService.getWalletBalance();
+        res.status(200).json({ success: true, data: adivahaRes });
+    } catch (error) {
+        console.error('Get Wallet Balance Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to retrieve wallet balance', error: error.message });
+    }
+};
+
+/**
+ * Release / Cancel Hold Booking (Non-LCC only)
+ */
+exports.releaseHoldBooking = async (req, res, next) => {
+    try {
+        const { bookingId } = req.body;
+        if (!bookingId) {
+            return res.status(400).json({ success: false, message: 'Booking ID is required' });
+        }
+
+        // Fetch flight booking details from database
+        let flightBooking = null;
+        try {
+            flightBooking = await prisma.flight_bookings.findUnique({
+                where: { booking_id: bookingId }
+            });
+        } catch (dbErr) {
+            console.warn('Database error fetching booking details for release hold:', dbErr.message);
+        }
+
+        if (!flightBooking) {
+            return res.status(404).json({ success: false, message: 'Booking not found' });
+        }
+
+        const providerBookingId = flightBooking.provider_booking_id;
+        const rawRes = flightBooking.raw_response?.adivaha || {};
+        const responseData = rawRes.responseData?.Response || rawRes.Response || rawRes;
+        const adivahaOrderId = responseData.OrderId || responseData.order_id || responseData.BookingId || flightBooking.provider_order_id;
+
+        // Call Adivaha API to release hold booking
+        let adivahaRes;
+        try {
+            adivahaRes = await AdivahaFlightService.releaseHoldBooking({
+                BookingId: providerBookingId,
+                order_id: adivahaOrderId,
+                Source: 4
+            });
+        } catch (apiErr) {
+            console.error('Adivaha releaseHoldBooking call failed:', apiErr);
+            return res.status(400).json({
+                success: false,
+                message: 'Failed to release hold booking from provider',
+                error: apiErr.message
+            });
+        }
+
+        const adivahaResponseData = adivahaRes?.responseData?.Response || adivahaRes?.Response || adivahaRes;
+        if (adivahaResponseData?.Error?.ErrorCode !== 0 && adivahaResponseData?.Error?.ErrorCode !== undefined) {
+            return res.status(400).json({
+                success: false,
+                message: 'Adivaha Release Hold Booking Failed',
+                error: adivahaResponseData.Error
+            });
+        }
+
+        // Update database records to RELEASED
+        try {
+            await prisma.$transaction([
+                prisma.bookings.update({
+                    where: { booking_id: bookingId },
+                    data: { status: 'RELEASED' }
+                }),
+                prisma.flight_bookings.update({
+                    where: { booking_id: bookingId },
+                    data: {
+                        booking_status: 'RELEASED',
+                        ticket_status: 'RELEASED',
+                        raw_response: {
+                            ...(flightBooking.raw_response || {}),
+                            release_hold: {
+                                releasedAt: new Date().toISOString(),
+                                response: adivahaRes
+                            }
+                        }
+                    }
+                })
+            ]);
+        } catch (dbUpdateErr) {
+            console.error('Database update failed after hold release:', dbUpdateErr.message);
+        }
+
+        res.status(200).json({ success: true, message: 'Hold booking released successfully', data: adivahaRes });
+    } catch (error) {
+        console.error('Release Hold Booking Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to release hold booking', error: error.message });
+    }
+};
+
+/**
+ * Manually refresh/create Adivaha API token
+ */
+exports.createManualToken = async (req, res, next) => {
+    try {
+        const adivahaRes = await AdivahaFlightService.createManualToken();
+        res.status(200).json({ success: true, data: adivahaRes });
+    } catch (error) {
+        console.error('Create Manual Token Error:', error);
+        res.status(500).json({ success: false, message: 'Failed to refresh token', error: error.message });
     }
 };
 
