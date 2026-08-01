@@ -921,7 +921,6 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
               </div>
             </div>
           )
-
         ) : activeTab === 'hotels' ? (
           <div className="relative flex flex-col gap-[8px] items-stretch w-full">
             <div
