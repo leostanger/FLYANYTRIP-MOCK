@@ -1031,61 +1031,63 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
         )}
 
         {/* Departure-Return (Flights) OR Checkin-Checkout (Hotels / Holiday) */}
-        {activeTab === 'flights' && tripType !== 'multi-city' ? (
-          <div className="flex gap-[8px] items-center relative w-full font-sans text-left">
-            {/* Departure Date */}
-            <div className="flex-1">
-              <div
-                className="bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[16px] py-[8px] rounded-[10.134px] cursor-pointer hover:border-gray-300 transition-colors"
-                onClick={() => {
-                  setShowFlightDepCalendar(true)
-                  setShowFlightRetCalendar(false)
-                  setShowFromDropdown(false)
-                  setShowToDropdown(false)
-                  setShowFlightTravellersDropdown(false)
-                }}
-              >
-                <div className="flex flex-col gap-[4px] items-start leading-none font-sans">
-                  <span className="font-satoshi font-normal text-[#666] text-[12px]">Departure</span>
-                  <span className="font-satoshi font-bold text-[#1a1a1a] text-[18px]">{formatDate(flightDepDate).date}</span>
-                  <span className="font-satoshi font-normal text-[#666] text-[10px]">{formatDate(flightDepDate).dayName}</span>
-                </div>
-                <div className="w-[32.47px] h-[32.47px] flex items-center justify-center">
-                  <CalendarIcon className="w-[25.7px] h-[24.1px] text-[#AFAFAF]" />
-                </div>
-              </div>
-            </div>
-
-            {/* Return Date */}
-            <div className="flex-1">
-              <div
-                className={`bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[16px] py-[8px] rounded-[10.134px] transition-colors ${tripType === 'one-way' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-gray-300'
-                  }`}
-                onClick={() => {
-                  if (tripType !== 'one-way') {
-                    setShowFlightRetCalendar(true)
-                    setShowFlightDepCalendar(false)
+        {activeTab === 'flights' ? (
+          tripType !== 'multi-city' ? (
+            <div className="flex gap-[8px] items-center relative w-full font-sans text-left">
+              {/* Departure Date */}
+              <div className="flex-1">
+                <div
+                  className="bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[16px] py-[8px] rounded-[10.134px] cursor-pointer hover:border-gray-300 transition-colors"
+                  onClick={() => {
+                    setShowFlightDepCalendar(true)
+                    setShowFlightRetCalendar(false)
                     setShowFromDropdown(false)
                     setShowToDropdown(false)
                     setShowFlightTravellersDropdown(false)
-                  }
-                }}
-              >
-                <div className="flex flex-col gap-[4px] items-start leading-none font-sans">
-                  <span className="font-satoshi font-normal text-[#666] text-[12px]">Return</span>
-                  <span className="font-satoshi font-bold text-[#1a1a1a] text-[18px]">
-                    {tripType === 'one-way' ? 'Select Date' : formatDate(flightRetDate).date}
-                  </span>
-                  <span className="font-satoshi font-normal text-[#666] text-[10px]">
-                    {tripType === 'one-way' ? 'Save more on round trips' : formatDate(flightRetDate).dayName}
-                  </span>
+                  }}
+                >
+                  <div className="flex flex-col gap-[4px] items-start leading-none font-sans">
+                    <span className="font-satoshi font-normal text-[#666] text-[12px]">Departure</span>
+                    <span className="font-satoshi font-bold text-[#1a1a1a] text-[18px]">{formatDate(flightDepDate).date}</span>
+                    <span className="font-satoshi font-normal text-[#666] text-[10px]">{formatDate(flightDepDate).dayName}</span>
+                  </div>
+                  <div className="w-[32.47px] h-[32.47px] flex items-center justify-center">
+                    <CalendarIcon className="w-[25.7px] h-[24.1px] text-[#AFAFAF]" />
+                  </div>
                 </div>
-                <div className="w-[32.47px] h-[32.47px] flex items-center justify-center">
-                  <CalendarIcon className="w-[25.7px] h-[24.1px] text-[#AFAFAF]" />
+              </div>
+
+              {/* Return Date */}
+              <div className="flex-1">
+                <div
+                  className={`bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[16px] py-[8px] rounded-[10.134px] transition-colors ${tripType === 'one-way' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-gray-300'
+                    }`}
+                  onClick={() => {
+                    if (tripType !== 'one-way') {
+                      setShowFlightRetCalendar(true)
+                      setShowFlightDepCalendar(false)
+                      setShowFromDropdown(false)
+                      setShowToDropdown(false)
+                      setShowFlightTravellersDropdown(false)
+                    }
+                  }}
+                >
+                  <div className="flex flex-col gap-[4px] items-start leading-none font-sans">
+                    <span className="font-satoshi font-normal text-[#666] text-[12px]">Return</span>
+                    <span className="font-satoshi font-bold text-[#1a1a1a] text-[18px]">
+                      {tripType === 'one-way' ? 'Select Date' : formatDate(flightRetDate).date}
+                    </span>
+                    <span className="font-satoshi font-normal text-[#666] text-[10px]">
+                      {tripType === 'one-way' ? 'Save more on round trips' : formatDate(flightRetDate).dayName}
+                    </span>
+                  </div>
+                  <div className="w-[32.47px] h-[32.47px] flex items-center justify-center">
+                    <CalendarIcon className="w-[25.7px] h-[24.1px] text-[#AFAFAF]" />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : null
         ) : activeTab === 'hotels' ? (
           <div className="flex gap-[8px] items-center relative w-full">
             {/* Check-in */}
