@@ -75,6 +75,16 @@ exports.confirmBooking = async (req, res, next) => {
         
         const IsDomesticReturn = (isDomestic === "Yes" && isoneway === "No") ? "Yes" : "No";
 
+        // Utility to parse date strings (e.g. DD/MM/YYYY or DD-MM-YYYY) into YYYY-MM-DD
+        const parseDateString = (dateStr) => {
+            if (!dateStr || typeof dateStr !== 'string') return dateStr;
+            const parts = dateStr.split(/[\/\-]/);
+            if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return dateStr;
+        };
+
         // Enrich passengers data for Adivaha API schema validation
         const departureDateStr = flightSnapshot?.raw?.Segments?.[0]?.[0]?.Origin?.DepTime || new Date().toISOString();
         const departureDate = new Date(departureDateStr);
@@ -93,7 +103,7 @@ exports.confirmBooking = async (req, res, next) => {
             }
 
             let paxType = "1";
-            let dobStr = p.DateOfBirth || "1990-01-01";
+            let dobStr = parseDateString(p.DateOfBirth || "1990-01-01");
             if (dobStr.includes("T")) {
                 dobStr = dobStr.split("T")[0] + "T00:00:00";
             } else {
@@ -128,6 +138,13 @@ exports.confirmBooking = async (req, res, next) => {
 
             const isLeadPax = idx === 0;
 
+            let passportExpiryStr = null;
+            if (isDomestic === "No") {
+                const rawExpiry = p.PassportExpiry || "2035-12-31";
+                const parsedExpiry = parseDateString(rawExpiry);
+                passportExpiryStr = parsedExpiry.includes("T") ? parsedExpiry.split("T")[0] + "T00:00:00" : parsedExpiry + "T00:00:00";
+            }
+
             return {
                 Title: title,
                 FirstName: p.FirstName || "Rahul",
@@ -145,7 +162,7 @@ exports.confirmBooking = async (req, res, next) => {
                 Email: email,
                 IsLeadPax: isLeadPax,
                 PassportNo: isDomestic === "No" ? (p.PassportNo || "P1234567") : null,
-                PassportExpiry: isDomestic === "No" ? (p.PassportExpiry || "2035-12-31T00:00:00") : null,
+                PassportExpiry: passportExpiryStr,
                 Seat: p.Seat
             };
         });
@@ -340,28 +357,44 @@ exports.confirmBooking = async (req, res, next) => {
                 // Moved outside to avoid transaction timeout — see createMany call below
                 return { booking, flightBooking };
             }, {
+                maxWait: 15000, // Wait up to 15 seconds to acquire database connection from pool
                 timeout: 30000 // 30 second timeout — prevents 500 error on slow Adivaha responses
             });
 
             // D. Save travellers profile records OUTSIDE the transaction (non-critical)
             // Using fire-and-forget createMany so it never blocks the booking response
             if (actualUserId && enrichedPassengers && enrichedPassengers.length > 0) {
-                const travellerRows = enrichedPassengers.map(pax => ({
-                    user_id:              actualUserId,
-                    title:                pax.Title,
-                    first_name:           pax.FirstName,
-                    last_name:            pax.LastName,
-                    gender:               pax.Gender === 2 ? 'Female' : 'Male',
-                    date_of_birth:        pax.DateOfBirth ? new Date(pax.DateOfBirth) : null,
-                    passport_number:      pax.PassportNo || null,
-                    passport_expiry_date: pax.PassportExpiry ? new Date(pax.PassportExpiry) : null,
-                }));
+                const travellerRows = enrichedPassengers.map(pax => {
+                    let dobDate = null;
+                    if (pax.DateOfBirth) {
+                        const d = new Date(pax.DateOfBirth);
+                        if (!isNaN(d.getTime())) dobDate = d;
+                    }
+                    let expiryDate = null;
+                    if (pax.PassportExpiry) {
+                        const d = new Date(pax.PassportExpiry);
+                        if (!isNaN(d.getTime())) expiryDate = d;
+                    }
+                    return {
+                        user_id:              actualUserId,
+                        title:                pax.Title,
+                        first_name:           pax.FirstName,
+                        last_name:            pax.LastName,
+                        gender:               pax.Gender === 2 ? 'Female' : 'Male',
+                        date_of_birth:        dobDate,
+                        passport_number:      pax.PassportNo || null,
+                        passport_expiry_date: expiryDate,
+                    };
+                });
 
                 prisma.travellers.createMany({ data: travellerRows, skipDuplicates: true })
                     .catch(err => console.warn('Non-critical: travellers save failed:', err.message));
             }
 
         } catch (dbError) {
+            const fs = require('fs');
+            const path = require('path');
+            fs.appendFileSync(path.join(__dirname, '../error_log.txt'), `[DB ERROR] ${new Date().toISOString()}: ${dbError.stack || dbError.message}\n`);
             console.error('Database connection/query failed:', dbError.message);
             return res.status(500).json({
                 success: false,
@@ -452,6 +485,9 @@ exports.confirmBooking = async (req, res, next) => {
         });
 
     } catch (error) {
+        const fs = require('fs');
+        const path = require('path');
+        fs.appendFileSync(path.join(__dirname, '../error_log.txt'), `[CONFIRM ERROR] ${new Date().toISOString()}: ${error.stack || error.message}\n`);
         console.error('Confirm Booking Error:', error);
         res.status(500).json({ success: false, message: 'Failed to confirm booking', error: error.message });
     }
@@ -1536,4 +1572,6 @@ exports.createManualToken = async (req, res, next) => {
         res.status(500).json({ success: false, message: 'Failed to refresh token', error: error.message });
     }
 };
+
+// trigger nodemon restart
 

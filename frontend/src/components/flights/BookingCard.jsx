@@ -191,7 +191,7 @@ function AirportPickerModal({ title, onSelect, onClose }) {
     <>
       <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
       <div
-        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi"
+        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-[420px] xl:h-full xl:min-h-[420px] backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -372,7 +372,7 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
     <>
       <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
       <div
-        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] p-5 flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi overflow-hidden"
+        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-[420px] xl:h-full xl:min-h-[420px] backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] p-5 flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-2.5 border-b border-[#e8e8e8] shrink-0">
@@ -833,34 +833,6 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
                       <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none">{formatDate(leg.date).dayName}</span>
                     </div>
                   </div>
-
-                  {/* Leg Airport Pickers */}
-                  {activeLegPicker?.legIdx === legIdx && activeLegPicker?.field === 'from' && (
-                    <AirportPickerModal
-                      title={`Flight ${legIdx + 1} — Departure City`}
-                      onSelect={(airport) => { updateLeg(legIdx, 'from', airport); setActiveLegPicker(null) }}
-                      onClose={() => setActiveLegPicker(null)}
-                    />
-                  )}
-                  {activeLegPicker?.legIdx === legIdx && activeLegPicker?.field === 'to' && (
-                    <AirportPickerModal
-                      title={`Flight ${legIdx + 1} — Arrival City`}
-                      onSelect={(airport) => { updateLeg(legIdx, 'to', airport); setActiveLegPicker(null) }}
-                      onClose={() => setActiveLegPicker(null)}
-                    />
-                  )}
-                  {activeLegPicker?.legIdx === legIdx && activeLegPicker?.field === 'date' && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setActiveLegPicker(null)} />
-                      <CustomDatePicker
-                        title={`Flight ${legIdx + 1} — Departure Date`}
-                        selectedDate={leg.date}
-                        onChange={(dateStr) => { updateLeg(legIdx, 'date', dateStr); setActiveLegPicker(null) }}
-                        onClose={() => setActiveLegPicker(null)}
-                        minDate={legIdx > 0 ? multiCityLegs[legIdx - 1].date : undefined}
-                      />
-                    </>
-                  )}
                 </div>
               ))}
 
@@ -1420,6 +1392,47 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
       </div>
 
       {/* Outer BookingCard Level Right Side Modals */}
+      {/* Multi-City Leg Modals */}
+      {activeLegPicker?.field === 'from' && (
+        <AirportPickerModal
+          title={`Flight ${activeLegPicker.legIdx + 1} — Departure City`}
+          onSelect={(airport) => {
+            updateLeg(activeLegPicker.legIdx, 'from', airport)
+            setActiveLegPicker(null)
+          }}
+          onClose={() => setActiveLegPicker(null)}
+        />
+      )}
+
+      {activeLegPicker?.field === 'to' && (
+        <AirportPickerModal
+          title={`Flight ${activeLegPicker.legIdx + 1} — Arrival City`}
+          onSelect={(airport) => {
+            updateLeg(activeLegPicker.legIdx, 'to', airport)
+            setActiveLegPicker(null)
+          }}
+          onClose={() => setActiveLegPicker(null)}
+        />
+      )}
+
+      {activeLegPicker?.field === 'date' && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setActiveLegPicker(null)} />
+          <CustomDatePicker
+            title={`Flight ${activeLegPicker.legIdx + 1} — Departure Date`}
+            origin={multiCityLegs[activeLegPicker.legIdx]?.from?.code || 'DEL'}
+            destination={multiCityLegs[activeLegPicker.legIdx]?.to?.code || 'BOM'}
+            selectedDate={multiCityLegs[activeLegPicker.legIdx]?.date}
+            onChange={(dateStr) => {
+              updateLeg(activeLegPicker.legIdx, 'date', dateStr)
+              setActiveLegPicker(null)
+            }}
+            onClose={() => setActiveLegPicker(null)}
+            minDate={activeLegPicker.legIdx > 0 ? multiCityLegs[activeLegPicker.legIdx - 1].date : undefined}
+          />
+        </>
+      )}
+
       {showFromDropdown && (
         <AirportPickerModal
           title="Select Departure Airport"

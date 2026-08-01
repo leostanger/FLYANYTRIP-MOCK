@@ -1,24 +1,29 @@
 import React, { useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { Pencil, Search, ArrowLeftRight, Calendar, User, ChevronUp } from "lucide-react";
 import TopLoadingBar from "../../../common/TopLoadingBar";
 
 export default function SearchSummary({ onModify, loading }) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Retrieve fallback context from location.state if URL params are empty (e.g., checkout page)
+  const stateContext = location.state?.searchContext || {};
 
   const [isEditing, setIsEditing] = useState(false);
 
-  // Form states initialized from URL params
-  const [origin, setOrigin] = useState(searchParams.get("origin") || "DEL");
-  const [destination, setDestination] = useState(searchParams.get("destination") || "BOM");
-  const [departureDate, setDepartureDate] = useState(searchParams.get("departureDate") || new Date().toISOString().split("T")[0]);
-  const [adults, setAdults] = useState(searchParams.get("adults") || "1");
-  const [cabinClass, setCabinClass] = useState(searchParams.get("cabinClass") || "Economy");
+  // Form states initialized from URL params or stateContext fallback
+  const [origin, setOrigin] = useState(searchParams.get("origin") || stateContext.origin || "DEL");
+  const [destination, setDestination] = useState(searchParams.get("destination") || stateContext.destination || "BOM");
+  const [departureDate, setDepartureDate] = useState(searchParams.get("departureDate") || stateContext.departureDate || new Date().toISOString().split("T")[0]);
+  const [adults, setAdults] = useState(searchParams.get("adults") || String(stateContext.adults || "1"));
+  const [cabinClass, setCabinClass] = useState(searchParams.get("cabinClass") || stateContext.cabinClass || "Economy");
 
-  const returnDate = searchParams.get("returnDate");
-  const tripType = searchParams.get("tripType") || "one-way";
-  const totalTravellers = parseInt(adults, 10);
+  const returnDate = searchParams.get("returnDate") || stateContext.returnDate;
+  const tripType = searchParams.get("tripType") || stateContext.tripType || "one-way";
+  const children = searchParams.get("children") || stateContext.children || "0";
+  const totalTravellers = parseInt(adults, 10) + parseInt(children, 10);
 
   const handleSwap = () => {
     const temp = origin;
@@ -37,6 +42,7 @@ export default function SearchSummary({ onModify, loading }) {
     currentParams.set("destination", destination.toUpperCase());
     currentParams.set("departureDate", departureDate);
     currentParams.set("adults", adults);
+    currentParams.set("children", children);
     currentParams.set("cabinClass", cabinClass);
 
     setIsEditing(false);
@@ -62,23 +68,23 @@ export default function SearchSummary({ onModify, loading }) {
           
           {/* Departure & Destination Cities */}
           <div className="flex items-center gap-3 font-['Satoshi'] font-bold text-[17.5px] md:text-[18.5px] text-[#1A1A1A]">
-            <span>{searchParams.get("origin") || "DEL"}</span>
+            <span>{origin}</span>
             <span className="text-[#999999] text-[15px] font-normal">→</span>
-            <span>{searchParams.get("destination") || "BOM"}</span>
+            <span>{destination}</span>
           </div>
 
           <div className="h-[18px] w-[1px] bg-[#EAEAEA] hidden sm:block" />
 
           {/* Travel Date */}
           <span className="font-['Quicksand'] text-[13.5px] md:text-[14.5px] font-medium text-[#333333]">
-            {searchParams.get("departureDate") || departureDate} {tripType === 'round-trip' && returnDate ? ` - ${returnDate}` : ''}
+            {departureDate} {tripType === 'round-trip' && returnDate ? ` - ${returnDate}` : ''}
           </span>
 
           <div className="h-[18px] w-[1px] bg-[#EAEAEA] hidden sm:block" />
 
           {/* Passenger Count & Cabin Class */}
           <span className="font-['Quicksand'] text-[13.5px] md:text-[14.5px] font-medium text-[#333333]">
-            {searchParams.get("adults") || "1"} Traveller • {searchParams.get("cabinClass") || "Economy"}
+            {totalTravellers} Traveller{totalTravellers > 1 ? 's' : ''} • {cabinClass}
           </span>
 
           <div className="h-[18px] w-[1px] bg-[#EAEAEA] hidden sm:block" />

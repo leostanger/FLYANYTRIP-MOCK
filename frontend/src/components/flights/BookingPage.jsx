@@ -7,7 +7,7 @@
 
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CheckCircle2, Home } from "lucide-react";
+import { CheckCircle2, Home, Loader2 } from "lucide-react";
 import DownloadInvoiceButton from "../../common/DownloadInvoiceButton";
 import { saveBooking } from "../../common/useBookings";
 
@@ -65,6 +65,7 @@ export default function BookingPage() {
     totalAdditional: 0
   });
   const [bookingData, setBookingData] = useState(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   // Passenger & Contact info state from Step 1
   // Auto-populate passenger slots based on search query (adults + children)
@@ -144,71 +145,91 @@ export default function BookingPage() {
     const finalCouponCode = paymentResult?.couponCode || addonsData?.couponCode || "";
     const finalCouponDiscount = paymentResult?.couponDiscount || addonsData?.couponDiscount || 0;
 
-    // 1. Save locally for instant E-Ticket & My Bookings rendering
-    const saved = saveBooking("Flight", {
-      flight,
-      fare,
-      contactDetails,
-      passengers,
-      cabinClass,
-      selectedSeat: selectedSeat || "12A",
-      seatPrice: addonsData.seatPrice || 0,
-      travelers: passengers.length || 1,
-      amount: finalAmount,
-      addonsData: addonsData,
-      couponCode: finalCouponCode,
-      couponDiscount: finalCouponDiscount,
-      couponApplied: !!finalCouponCode,
-      mealSelected: addonsData.meal === "veg" ? "Vegetarian Meal" : addonsData.meal === "nonveg" ? "Non-Vegetarian Meal" : addonsData.meal === "vegan" ? "Vegan Meal" : addonsData.meal === "jain" ? "Jain Meal" : "No Meal",
-      baggageKg: addonsData.addons?.includes("bag_30") ? 30 : addonsData.addons?.includes("bag_15") ? 15 : 15,
-      seatLabel: selectedSeat ? `${selectedSeat} - ${cabinClass}` : `12A - ${cabinClass}`,
-    });
+    setIsConfirming(true);
 
-    const finalBooking = saved || {
-      id: Math.random().toString(36).substring(2, 9),
-      pnr: "VG2434",
-      flight,
-      passengers,
-      amount: finalAmount,
-      date: new Date().toISOString()
-    };
-
-    // 2. INSTANT UI STEP TRANSITION (Do NOT await network request)
-    setBookingData(finalBooking);
-    goToStep(5);
-
-    // 3. Asynchronously sync to backend in background
-    fetch("/api/booking/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        traceId: flight?.traceId || "trace_live_01",
-        resultIndex: flight?.resultIndex || "1",
-        passengers: passengers.map((p, idx) => {
-          const pSeat = addonsData.paxSeatsMap?.[idx]?.seat || (idx === 0 ? selectedSeat : null);
-          return {
-            Title: p.title || "Mr.",
-            FirstName: p.firstName || "Rahul",
-            LastName: p.lastName || "Sharma",
-            DateOfBirth: p.dob || "1990-08-15",
-            Seat: pSeat ? { Code: pSeat } : undefined
-          };
-        }),
-        contactDetails,
-        ssrSelections: {
-          seats: passengers.map((p, idx) => {
-            const pSeatObj = addonsData.paxSeatsMap?.[idx];
+    try {
+      // 1. Sync to backend first and wait for response
+      const response = await fetch("/api/booking/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          traceId: flight?.traceId || "trace_live_01",
+          resultIndex: flight?.resultIndex || "1",
+          passengers: passengers.map((p, idx) => {
+            const pSeat = addonsData.paxSeatsMap?.[idx]?.seat || (idx === 0 ? selectedSeat : null);
             return {
-              paxIdx: idx,
-              code: pSeatObj?.seat || (idx === 0 ? selectedSeat : "Auto-assigned"),
-              price: pSeatObj?.price || 0
+              Title: p.title || "Mr.",
+              FirstName: p.firstName || "Rahul",
+              LastName: p.lastName || "Sharma",
+              DateOfBirth: p.dob || "1990-08-15",
+              Seat: pSeat ? { Code: pSeat } : undefined
             };
-          })
-        },
-        flightSnapshot: flight,
-        totalAmount: finalAmount
-      })
-    }).catch(err => console.warn("Backend API sync warning:", err.message));
+          }),
+          contactDetails,
+          ssrSelections: {
+            seats: passengers.map((p, idx) => {
+              const pSeatObj = addonsData.paxSeatsMap?.[idx];
+              return {
+                paxIdx: idx,
+                code: pSeatObj?.seat || (idx === 0 ? selectedSeat : "Auto-assigned"),
+                price: pSeatObj?.price || 0
+              };
+            })
+          },
+          flightSnapshot: flight,
+          totalAmount: finalAmount
+        })
+      });
+
+      const resJson = await response.json();
+
+      if (resJson.success && resJson.data) {
+        const backendBooking = resJson.data.booking;
+        const backendFlightBooking = resJson.data.flightBooking;
+
+        // 2. Save locally with the REAL booking ID and PNR from database
+        const saved = saveBooking("Flight", {
+          id: backendBooking.booking_id,
+          pnr: backendFlightBooking.pnr,
+          flight,
+          fare,
+          contactDetails,
+          passengers,
+          cabinClass,
+          selectedSeat: selectedSeat || "12A",
+          seatPrice: addonsData.seatPrice || 0,
+          travelers: passengers.length || 1,
+          amount: finalAmount,
+          addonsData: addonsData,
+          couponCode: finalCouponCode,
+          couponDiscount: finalCouponDiscount,
+          couponApplied: !!finalCouponCode,
+          mealSelected: addonsData.meal === "veg" ? "Vegetarian Meal" : addonsData.meal === "nonveg" ? "Non-Vegetarian Meal" : addonsData.meal === "vegan" ? "Vegan Meal" : addonsData.meal === "jain" ? "Jain Meal" : "No Meal",
+          baggageKg: addonsData.addons?.includes("bag_30") ? 30 : addonsData.addons?.includes("bag_15") ? 15 : 15,
+          seatLabel: selectedSeat ? `${selectedSeat} - ${cabinClass}` : `12A - ${cabinClass}`,
+        });
+
+        const finalBooking = {
+          ...saved,
+          id: backendBooking.booking_id,
+          pnr: backendFlightBooking.pnr,
+          flight,
+          passengers,
+          amount: finalAmount,
+          date: backendBooking.created_at || new Date().toISOString()
+        };
+
+        setBookingData(finalBooking);
+        goToStep(5);
+      } else {
+        alert("Booking confirmation failed: " + (resJson.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Payment confirmation error:", err);
+      alert("Error confirming booking: " + err.message);
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
   // If step 5, render confirmation full-page (same as HotelConfirmationPage)
@@ -325,6 +346,27 @@ export default function BookingPage() {
 
       {/* 3. Global Footer (Unmodified) */}
       <Footer />
+
+      {/* Premium Loader Screen during database save and ticketing */}
+      {isConfirming && (
+        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center bg-black/60 backdrop-blur-md text-white font-sans">
+          <div className="bg-[#1a1a1a]/95 border border-white/10 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 text-center">
+            {/* Spinning loader with gradient ring */}
+            <div className="relative w-16 h-16 mb-6 flex items-center justify-center">
+              <Loader2 className="w-12 h-12 text-[#e53935] animate-spin" />
+            </div>
+            
+            <h3 className="text-xl font-bold mb-2 tracking-wide text-white font-satoshi">Confirming Booking</h3>
+            <p className="text-sm text-gray-300 mb-4 px-2 leading-relaxed font-satoshi">
+              We are connecting with the airline, issuing your ticket, and saving passenger details to your Neon database...
+            </p>
+            <div className="flex items-center gap-2 text-xs text-red-400 font-semibold uppercase tracking-wider bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+              Do not close or refresh this page
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
