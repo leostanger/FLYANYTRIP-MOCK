@@ -184,12 +184,25 @@ export default function ResultPage() {
       setLoading(true);
       try {
         let response;
+        let origin = "";
+        let destination = "";
+        let departureDate = "";
 
         if (tripType === "multi-city") {
           // Parse segments JSON from URL
           const rawSegments = searchParams.get("segments") || "[]";
           let segments = [];
           try { segments = JSON.parse(decodeURIComponent(rawSegments)); } catch { segments = []; }
+
+          if (segments.length > 0) {
+            origin = segments[0].from || "DEL";
+            destination = segments[segments.length - 1].to || "DXB";
+            departureDate = segments[0].departureDate || new Date().toISOString().split("T")[0];
+          } else {
+            origin = "DEL";
+            destination = "BOM";
+            departureDate = new Date().toISOString().split("T")[0];
+          }
 
           response = await flightService.searchMultiCity({
             segments,
@@ -199,9 +212,9 @@ export default function ResultPage() {
             cabinClass
           });
         } else {
-          const origin = searchParams.get("origin") || "DEL";
-          const destination = searchParams.get("destination") || "BOM";
-          const departureDate = searchParams.get("departureDate") || new Date().toISOString().split("T")[0];
+          origin = searchParams.get("origin") || "DEL";
+          destination = searchParams.get("destination") || "BOM";
+          departureDate = searchParams.get("departureDate") || new Date().toISOString().split("T")[0];
           const returnDate = searchParams.get("returnDate") || "";
           response = await flightService.searchFlights({ origin, destination, departureDate, adults, children, cabinClass, tripType, returnDate });
         }
