@@ -26,8 +26,15 @@ import ToursPersonalize from './common/Tour package/pages/ToursPersonalize';
 import ReviewBooking from './common/Tour package/pages/ReviewBooking';
 import FinalizePayment from './common/Tour package/pages/FinalizePayment';
 import TourConfirmation from './common/Tour package/pages/TourConfirmation';
+import SuspendedScreen from './pages/SuspendedScreen';
 
 function App() {
+  const isSuspended = true;
+
+  if (isSuspended) {
+    return <SuspendedScreen />;
+  }
+
   return (
     <AuthProvider>
       <Router>
