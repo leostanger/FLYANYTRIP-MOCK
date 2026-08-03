@@ -409,10 +409,9 @@ export default function BookingPage() {
                 ></div>
               </div>
 
-              <div className="flex items-center gap-2 text-[10px] text-[#F12B19] font-bold uppercase tracking-wider bg-red-50 px-3 py-1.5 rounded-full border border-red-100">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F12B19] animate-ping"></span>
+              <p className="text-[11.5px] text-[#F12B19] font-bold uppercase tracking-widest font-satoshi">
                 Do not close or refresh this page
-              </div>
+              </p>
             </div>
           </div>
 
