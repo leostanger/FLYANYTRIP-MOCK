@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import flightService from '../../services/flightService'
+import hotelService from '../../services/hotelService'
 import {
   FlightsIcon,
   HotelsIcon,
@@ -126,6 +127,153 @@ const POPULAR_AIRPORTS = [
   { city: 'Sydney / (SYD)', airport: 'Sydney Kingsford Smith Airport', code: 'SYD', country: 'Australia' }
 ]
 
+// Hotel Destination Picker Modal Component with Live Adivaha Search
+function HotelDestinationModal({ title, onSelect, onClose }) {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [apiDestinations, setApiDestinations] = useState([])
+  const [isSearchingApi, setIsSearchingApi] = useState(false)
+
+  useEffect(() => {
+    if (!searchTerm.trim() || searchTerm.trim().length < 2) {
+      setApiDestinations([])
+      setIsSearchingApi(false)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingApi(true)
+      try {
+        const res = await hotelService.searchLocations(searchTerm.trim())
+        let list = []
+        if (res?.success && res?.data?.cities) {
+          list = res.data.cities
+        } else if (Array.isArray(res?.cities)) {
+          list = res.cities
+        } else if (Array.isArray(res?.data)) {
+          list = res.data
+        } else if (Array.isArray(res)) {
+          list = res
+        }
+
+        if (list.length > 0) {
+          const formatted = list.map((item) => {
+            const name = item.destinationName || item.name || ''
+            const code = item.destinationCode || item.code || ''
+            const country = item.countryCode || item.country || ''
+            return {
+              name,
+              code,
+              country,
+              display: `${name}${country ? `, ${country}` : ''}`
+            }
+          }).filter(x => x.name)
+          setApiDestinations(formatted)
+        } else {
+          setApiDestinations([])
+        }
+      } catch (err) {
+        console.warn('Adivaha hotel location search error:', err)
+      } finally {
+        setIsSearchingApi(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  const filteredLocal = POPULAR_DESTINATIONS.filter(
+    (item) => item.toLowerCase().includes(searchTerm.toLowerCase())
+  ).map(item => ({
+    name: item.split(',')[0],
+    display: item,
+    code: '',
+    country: item.split(',')[1]?.trim() || ''
+  }))
+
+  const displayedDestinations = apiDestinations.length > 0 ? apiDestinations : filteredLocal
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
+      <div
+        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-[420px] xl:h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[#e8e8e8] bg-white/40 shrink-0">
+          <div>
+            <h3 className="font-satoshi font-bold text-[#1a1a1a] text-[16px] leading-tight m-0">{title}</h3>
+            <p className="font-satoshi font-normal text-[#666] text-[11px] m-0">Search city or select destination</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-900 flex items-center justify-center font-bold text-xs border-none cursor-pointer transition-all shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="px-4 py-2.5 border-b border-[#e8e8e8] bg-white/60 shrink-0">
+          <div className="relative flex items-center">
+            <SearchIcon className="w-4 h-4 text-gray-400 absolute left-3" />
+            <input
+              type="text"
+              autoFocus
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search destination..."
+              className="w-full pl-9 pr-3 py-2 bg-white border border-[#e8e8e8] rounded-[10px] font-satoshi font-medium text-[13px] text-[#1a1a1a] outline-none focus:border-[#e53935] focus:ring-1 focus:ring-red-100 transition-all placeholder-gray-400"
+            />
+          </div>
+        </div>
+
+        {/* Destination List */}
+        <div className="flex-1 overflow-y-auto p-2.5 space-y-1">
+          {isSearchingApi ? (
+            <div className="py-6 text-center font-satoshi text-gray-400 text-xs flex items-center justify-center gap-2">
+              <span className="w-3 h-3 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></span>
+              Searching Adivaha API...
+            </div>
+          ) : displayedDestinations.length > 0 ? (
+            displayedDestinations.map((item, index) => (
+              <button
+                key={item.code || index}
+                type="button"
+                onClick={() => {
+                  onSelect(item.display)
+                  onClose()
+                }}
+                className="w-full p-2.5 rounded-[10px] text-left hover:bg-[#FCECEC]/60 border border-transparent hover:border-[#e53935]/20 bg-transparent cursor-pointer transition-all flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-[8px] bg-gray-100 group-hover:bg-[#FCECEC] text-gray-600 group-hover:text-[#e53935] flex items-center justify-center transition-colors shrink-0">
+                    <HotelsIcon className="w-[16px] h-[11px]" />
+                  </div>
+                  <div>
+                    <span className="font-satoshi font-bold text-[13px] text-[#1a1a1a] block group-hover:text-[#e53935] transition-colors">{item.name}</span>
+                    <span className="font-satoshi font-normal text-[10px] text-[#666]">{item.country || 'Location'}</span>
+                  </div>
+                </div>
+                {item.code && (
+                  <span className="font-satoshi font-extrabold text-[10px] px-2 py-0.5 rounded-[5px] bg-gray-100 group-hover:bg-[#e53935] group-hover:text-white text-[#3c3c3c] transition-all">
+                    {item.code}
+                  </span>
+                )}
+              </button>
+            ))
+          ) : (
+            <div className="py-6 text-center font-satoshi text-gray-400 text-xs">
+              No destinations found.
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 // Airport Picker Modal Component with Live Adivaha Search
 function AirportPickerModal({ title, onSelect, onClose }) {
   const [searchTerm, setSearchTerm] = useState('')
@@ -191,7 +339,7 @@ function AirportPickerModal({ title, onSelect, onClose }) {
     <>
       <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
       <div
-        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-[420px] xl:h-full xl:min-h-[420px] backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi"
+        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-[420px] xl:h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -371,7 +519,7 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
     <>
       <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
       <div
-        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-[420px] xl:h-full xl:min-h-[420px] backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] p-5 flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi overflow-hidden"
+        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-[420px] xl:h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] p-4 flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-2.5 border-b border-[#e8e8e8] shrink-0">
@@ -438,7 +586,7 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
                   onChange(dateStr)
                   onClose()
                 }}
-                className={`h-10 w-full rounded-xl py-1 flex flex-col items-center justify-center transition-all ${isSelected
+                className={`h-9 w-full rounded-xl py-1 flex flex-col items-center justify-center transition-all ${isSelected
                     ? 'bg-[#e53935] text-white shadow-md'
                     : isPast
                       ? 'text-gray-300 cursor-not-allowed border-none bg-transparent'
@@ -460,6 +608,271 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
     </>
   )
 }
+
+// Hotel Guests & Rooms Modal
+function HotelGuestsModal({ rooms, setRooms, guests, setGuests, onClose }) {
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
+      <div
+        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] p-5 flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between pb-2.5 border-b border-[#e8e8e8] shrink-0">
+          <div>
+            <h3 className="font-satoshi font-bold text-[#1a1a1a] text-[16px] leading-tight m-0">Guests & Rooms</h3>
+            <p className="font-satoshi font-normal text-[#666] text-[11px] m-0">Choose number of rooms and guests</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-900 font-bold text-xs border-none cursor-pointer transition-all shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Rooms */}
+        <div className="flex items-center justify-between shrink-0 py-3">
+          <div>
+            <span className="font-satoshi font-bold text-[#1a1a1a] text-[13px] block">Rooms</span>
+            <span className="font-satoshi font-normal text-[#666] text-[10px]">Number of rooms required</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setRooms(Math.max(1, rooms - 1))}
+              className="w-7 h-7 rounded-full border border-[#e8e8e8] flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] bg-white cursor-pointer transition-colors text-xs"
+            >
+              -
+            </button>
+            <span className="font-satoshi font-bold text-[#1a1a1a] text-[13px] w-4 text-center">{rooms}</span>
+            <button
+              type="button"
+              onClick={() => setRooms(rooms + 1)}
+              className="w-7 h-7 rounded-full border border-[#e8e8e8] flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] bg-white cursor-pointer transition-colors text-xs"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        {/* Guests */}
+        <div className="flex items-center justify-between shrink-0 py-3 border-t border-[#e8e8e8]">
+          <div>
+            <span className="font-satoshi font-bold text-[#1a1a1a] text-[13px] block">Guests</span>
+            <span className="font-satoshi font-normal text-[#666] text-[10px]">Number of guests</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setGuests(Math.max(1, guests - 1))}
+              className="w-7 h-7 rounded-full border border-[#e8e8e8] flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] bg-white cursor-pointer transition-colors text-xs"
+            >
+              -
+            </button>
+            <span className="font-satoshi font-bold text-[#1a1a1a] text-[13px] w-4 text-center">{guests}</span>
+            <button
+              type="button"
+              onClick={() => setGuests(guests + 1)}
+              className="w-7 h-7 rounded-full border border-[#e8e8e8] flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] bg-white cursor-pointer transition-colors text-xs"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="bg-[#e53935] hover:bg-red-700 text-white py-2.5 rounded-[10px] font-satoshi font-bold text-[13px] transition-colors cursor-pointer border-none shadow-sm shrink-0"
+        >
+          Apply Selection
+        </button>
+      </div>
+    </>
+  )
+}
+
+// Holiday Destination Picker Modal
+function HolidayDestinationModal({ title, onSelect, onClose }) {
+  const [searchVal, setSearchVal] = useState('')
+  const [apiDestinations, setApiDestinations] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!searchVal.trim()) {
+      setApiDestinations([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const res = await hotelService.searchLocations(searchVal)
+        if (res?.success && res?.data?.cities) {
+          const formatted = res.data.cities.map(city => ({
+            name: city.destinationName,
+            display: `${city.destinationName}, ${city.countryCode}`,
+            code: city.destinationCode,
+            country: city.countryCode
+          }))
+          setApiDestinations(formatted)
+        }
+      } catch (err) {
+        console.warn('Destination search failed:', err)
+      } finally {
+        setLoading(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchVal])
+
+  const filteredLocal = POPULAR_DESTINATIONS.filter(item =>
+    item.toLowerCase().includes(searchVal.toLowerCase())
+  ).map(item => ({
+    name: item.split(',')[0],
+    display: item,
+    code: '',
+    country: item.split(',')[1]?.trim() || ''
+  }))
+
+  const displayedDestinations = apiDestinations.length > 0 ? apiDestinations : filteredLocal
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
+      <div
+        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-[420px] xl:h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[#e8e8e8] bg-white/40 shrink-0">
+          <div>
+            <h3 className="font-satoshi font-bold text-[#1a1a1a] text-[16px] leading-tight m-0">{title}</h3>
+            <p className="font-satoshi font-normal text-[#666] text-[11px] m-0">Search city or select package destination</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-900 flex items-center justify-center font-bold text-xs border-none cursor-pointer transition-all shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="px-5 py-2.5 bg-white/30 border-b border-[#e8e8e8] shrink-0">
+          <div className="flex items-center gap-2 bg-white/80 border border-[#e8e8e8] rounded-[10px] px-3 py-1.5 focus-within:border-gray-300 transition-colors">
+            <span className="text-gray-400 text-xs">🔍</span>
+            <input
+              type="text"
+              value={searchVal}
+              onChange={(e) => setSearchVal(e.target.value)}
+              placeholder="Where do you want to go?"
+              className="bg-transparent border-none outline-none font-satoshi font-bold text-[#1a1a1a] text-[13px] placeholder-gray-400 w-full p-0 leading-none"
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-2.5 py-2 min-h-0">
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#e53935]" />
+            </div>
+          ) : displayedDestinations.length > 0 ? (
+            <div className="flex flex-col gap-0.5">
+              {displayedDestinations.map((dest, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    onSelect(dest.display)
+                    onClose()
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#FCECEC] rounded-[10px] transition-colors border-none bg-transparent cursor-pointer group text-left"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 group-hover:bg-[#FFF] transition-colors">
+                    <HolidayIcon className="w-4.5 h-4.5 text-gray-500 group-hover:text-[#e53935] transition-colors" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-satoshi font-bold text-[#1a1a1a] text-[13px] leading-tight truncate group-hover:text-[#e53935] transition-colors">
+                      {dest.name}
+                    </span>
+                    <span className="font-satoshi font-normal text-[#666] text-[10px] truncate">
+                      {dest.country}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 font-satoshi text-gray-400 text-xs">No destinations found</div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// Holiday Travelers Modal
+function HolidayTravelersModal({ travelers, setTravelers, onClose }) {
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
+      <div
+        className="absolute left-0 top-full mt-3 xl:top-0 xl:mt-0 xl:left-[calc(100%+16px)] z-50 w-full xl:w-[380px] h-full backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.95)] rounded-[13.444px] border border-[#e8e8e8] shadow-[0px_4px_14px_rgba(0,0,0,0.15)] p-5 flex flex-col justify-between animate-in fade-in slide-in-from-left-2 duration-200 text-left font-satoshi overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between pb-2.5 border-b border-[#e8e8e8] shrink-0">
+          <div>
+            <h3 className="font-satoshi font-bold text-[#1a1a1a] text-[16px] leading-tight m-0">Travelers</h3>
+            <p className="font-satoshi font-normal text-[#666] text-[11px] m-0">Choose package travelers</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-900 font-bold text-xs border-none cursor-pointer transition-all shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between shrink-0 py-4">
+          <div>
+            <span className="font-satoshi font-bold text-[#1a1a1a] text-[13px] block">Travelers</span>
+            <span className="font-satoshi font-normal text-[#666] text-[10px]">Number of package travelers</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setTravelers(Math.max(1, travelers - 1))}
+              className="w-7 h-7 rounded-full border border-[#e8e8e8] flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] bg-white cursor-pointer transition-colors text-xs"
+            >
+              -
+            </button>
+            <span className="font-satoshi font-bold text-[#1a1a1a] text-[13px] w-4 text-center">{travelers}</span>
+            <button
+              type="button"
+              onClick={() => setTravelers(travelers + 1)}
+              className="w-7 h-7 rounded-full border border-[#e8e8e8] flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] bg-white cursor-pointer transition-colors text-xs"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="bg-[#e53935] hover:bg-red-700 text-white py-2.5 rounded-[10px] font-satoshi font-bold text-[13px] transition-colors cursor-pointer border-none shadow-sm shrink-0"
+        >
+          Apply Selection
+        </button>
+      </div>
+    </>
+  )
+}
+
 
 // Travellers & Cabin Class Modal
 function TravellersClassModal({ adults, setAdults, children, setChildren, cabinClass, setCabinClass, onClose }) {
@@ -898,96 +1311,41 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
         ) : activeTab === 'hotels' ? (
           <div className="relative flex flex-col gap-[8px] items-stretch w-full">
             <div
-              className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex flex-col gap-[4px] items-start px-[16px] py-[8px] rounded-[10.134px] w-full relative cursor-pointer"
+              className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex flex-col gap-[4px] items-start px-[16px] py-[8px] rounded-[10.134px] w-full relative cursor-pointer hover:border-gray-300 transition-colors"
               onClick={() => {
-                destInputRef.current?.focus()
                 setShowDestDropdown(true)
+                setShowFromDropdown(false)
+                setShowToDropdown(false)
+                setShowFlightDepCalendar(false)
+                setShowFlightRetCalendar(false)
+                setShowFlightTravellersDropdown(false)
               }}
             >
               <span className="font-satoshi font-normal text-[#666] text-[12px] leading-none">Destination</span>
-              <input
-                ref={destInputRef}
-                type="text"
-                value={hotelDest}
-                onChange={(e) => setHotelDest(e.target.value)}
-                onFocus={() => setShowDestDropdown(true)}
-                className="text-[18px] font-satoshi font-bold text-[#1a1a1a] bg-transparent border-none outline-none w-full p-0 m-0 placeholder-gray-400 cursor-text"
-                placeholder="Enter destination..."
-              />
-
-              {showDestDropdown && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowDestDropdown(false) }} />
-                  <div className="absolute left-0 top-full mt-2 bg-white rounded-2xl border border-gray-150 py-2 shadow-xl z-50 w-full flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 font-sans">
-                      Popular Destinations
-                    </div>
-                    {POPULAR_DESTINATIONS.map((dest) => (
-                      <button
-                        key={dest}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setHotelDest(dest)
-                          setShowDestDropdown(false)
-                        }}
-                        className="px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors border-none bg-transparent cursor-pointer w-full flex items-center gap-2 font-sans"
-                      >
-                        <HotelsIcon className="w-4 h-4 text-gray-400" />
-                        <span>{dest}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+              <span className="font-satoshi font-bold text-[#1a1a1a] text-[18px] leading-normal font-sans">{hotelDest || 'Select destination'}</span>
+              <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">Where are you going?</span>
             </div>
           </div>
         ) : (
           <div className="relative flex gap-[8px] items-center w-full">
             {/* Destination */}
             <div
-              className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex flex-col gap-[4px] items-start px-[16px] py-[8px] rounded-[10.134px] flex-1 relative cursor-pointer"
+              className="backdrop-blur-[5.7px] bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex flex-col gap-[4px] items-start px-[16px] py-[8px] rounded-[10.134px] flex-1 relative cursor-pointer hover:border-gray-300 transition-colors"
               onClick={() => {
-                holidayDestInputRef.current?.focus()
                 setShowHolidayDestDropdown(true)
+                setShowHolidayStartDateCalendar(false)
+                setShowHolidayEndDateCalendar(false)
+                setShowHolidayTravelersDropdown(false)
+                setShowFromDropdown(false)
+                setShowToDropdown(false)
+                setShowFlightDepCalendar(false)
+                setShowFlightRetCalendar(false)
+                setShowFlightTravellersDropdown(false)
               }}
             >
               <span className="font-satoshi font-normal text-[#666] text-[12px] leading-none">Destination</span>
-              <input
-                ref={holidayDestInputRef}
-                type="text"
-                value={holidayDest}
-                onChange={(e) => setHolidayDest(e.target.value)}
-                onFocus={() => setShowHolidayDestDropdown(true)}
-                className="text-[18px] font-satoshi font-bold text-[#1a1a1a] bg-transparent border-none outline-none w-full p-0 m-0 placeholder-gray-400 cursor-text"
-                placeholder="Enter destination..."
-              />
-
-              {showHolidayDestDropdown && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowHolidayDestDropdown(false) }} />
-                  <div className="absolute left-0 top-full mt-2 bg-white rounded-2xl border border-gray-150 py-2 shadow-xl z-50 w-full flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 font-sans">
-                      Popular Destinations
-                    </div>
-                    {POPULAR_DESTINATIONS.map((dest) => (
-                      <button
-                        key={dest}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setHolidayDest(dest)
-                          setShowHolidayDestDropdown(false)
-                        }}
-                        className="px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors border-none bg-transparent cursor-pointer w-full flex items-center gap-2 font-sans"
-                      >
-                        <HotelsIcon className="w-4 h-4 text-gray-400" />
-                        <span>{dest}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+              <span className="font-satoshi font-bold text-[#1a1a1a] text-[18px] leading-normal font-sans">{holidayDest || 'Select destination'}</span>
+              <span className="font-satoshi font-normal text-[#666] text-[10px] leading-none font-sans">Where do you want to go?</span>
             </div>
 
             {/* Budget */}
@@ -1065,12 +1423,19 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
         ) : activeTab === 'hotels' ? (
           <div className="flex gap-[8px] items-center relative w-full">
             {/* Check-in */}
-            <div className="flex-1 relative">
+            <div className="flex-1">
               <div
                 className="bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[16px] py-[8px] rounded-[10.134px] cursor-pointer hover:border-gray-300 transition-colors"
                 onClick={() => {
                   setShowCheckInCalendar(true)
                   setShowCheckOutCalendar(false)
+                  setShowDestDropdown(false)
+                  setShowGuestsDropdown(false)
+                  setShowFromDropdown(false)
+                  setShowToDropdown(false)
+                  setShowFlightDepCalendar(false)
+                  setShowFlightRetCalendar(false)
+                  setShowFlightTravellersDropdown(false)
                 }}
               >
                 <div className="flex flex-col gap-[4px] items-start leading-none">
@@ -1082,26 +1447,22 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
                   <CalendarIcon className="w-[25.7px] h-[24.1px] text-[#AFAFAF]" />
                 </div>
               </div>
-
-              {showCheckInCalendar && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowCheckInCalendar(false) }} />
-                  <CustomDatePicker
-                    selectedDate={checkInDate}
-                    onChange={handleCheckInChange}
-                    onClose={() => setShowCheckInCalendar(false)}
-                  />
-                </>
-              )}
             </div>
 
             {/* Check-out */}
-            <div className="flex-1 relative">
+            <div className="flex-1">
               <div
                 className="bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[16px] py-[8px] rounded-[10.134px] cursor-pointer hover:border-gray-300 transition-colors"
                 onClick={() => {
                   setShowCheckOutCalendar(true)
                   setShowCheckInCalendar(false)
+                  setShowDestDropdown(false)
+                  setShowGuestsDropdown(false)
+                  setShowFromDropdown(false)
+                  setShowToDropdown(false)
+                  setShowFlightDepCalendar(false)
+                  setShowFlightRetCalendar(false)
+                  setShowFlightTravellersDropdown(false)
                 }}
               >
                 <div className="flex flex-col gap-[4px] items-start leading-none">
@@ -1113,29 +1474,24 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
                   <CalendarIcon className="w-[25.7px] h-[24.1px] text-[#AFAFAF]" />
                 </div>
               </div>
-
-              {showCheckOutCalendar && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowCheckOutCalendar(false) }} />
-                  <CustomDatePicker
-                    selectedDate={checkOutDate}
-                    onChange={setCheckOutDate}
-                    onClose={() => setShowCheckOutCalendar(false)}
-                    minDate={checkInDate}
-                  />
-                </>
-              )}
             </div>
           </div>
         ) : (
           <div className="flex gap-[8px] items-center relative w-full">
             {/* Start Date */}
-            <div className="flex-1 relative">
+            <div className="flex-1">
               <div
                 className="bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[16px] py-[8px] rounded-[10.134px] cursor-pointer hover:border-gray-300 transition-colors"
                 onClick={() => {
                   setShowHolidayStartDateCalendar(true)
                   setShowHolidayEndDateCalendar(false)
+                  setShowHolidayDestDropdown(false)
+                  setShowHolidayTravelersDropdown(false)
+                  setShowFromDropdown(false)
+                  setShowToDropdown(false)
+                  setShowFlightDepCalendar(false)
+                  setShowFlightRetCalendar(false)
+                  setShowFlightTravellersDropdown(false)
                 }}
               >
                 <div className="flex flex-col gap-[4px] items-start leading-none">
@@ -1147,38 +1503,22 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
                   <CalendarIcon className="w-[25.7px] h-[24.1px] text-[#AFAFAF]" />
                 </div>
               </div>
-
-              {showHolidayStartDateCalendar && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowHolidayStartDateCalendar(false) }} />
-                  <CustomDatePicker
-                    selectedDate={holidayStartDate}
-                    onChange={(dateStr) => {
-                      setHolidayStartDate(dateStr)
-                      const start = new Date(dateStr)
-                      const end = new Date(holidayEndDate)
-                      if (end <= start) {
-                        const nextDate = new Date(start)
-                        nextDate.setDate(start.getDate() + 7) // default to 7 nights for holiday packages
-                        const y = nextDate.getFullYear()
-                        const m = String(nextDate.getMonth() + 1).padStart(2, '0')
-                        const d = String(nextDate.getDate()).padStart(2, '0')
-                        setHolidayEndDate(`${y}-${m}-${d}`)
-                      }
-                    }}
-                    onClose={() => setShowHolidayStartDateCalendar(false)}
-                  />
-                </>
-              )}
             </div>
 
             {/* End Date */}
-            <div className="flex-1 relative">
+            <div className="flex-1">
               <div
                 className="bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[16px] py-[8px] rounded-[10.134px] cursor-pointer hover:border-gray-300 transition-colors"
                 onClick={() => {
                   setShowHolidayEndDateCalendar(true)
                   setShowHolidayStartDateCalendar(false)
+                  setShowHolidayDestDropdown(false)
+                  setShowHolidayTravelersDropdown(false)
+                  setShowFromDropdown(false)
+                  setShowToDropdown(false)
+                  setShowFlightDepCalendar(false)
+                  setShowFlightRetCalendar(false)
+                  setShowFlightTravellersDropdown(false)
                 }}
               >
                 <div className="flex flex-col gap-[4px] items-start leading-none">
@@ -1190,18 +1530,6 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
                   <CalendarIcon className="w-[25.7px] h-[24.1px] text-[#AFAFAF]" />
                 </div>
               </div>
-
-              {showHolidayEndDateCalendar && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowHolidayEndDateCalendar(false) }} />
-                  <CustomDatePicker
-                    selectedDate={holidayEndDate}
-                    onChange={setHolidayEndDate}
-                    onClose={() => setShowHolidayEndDateCalendar(false)}
-                    minDate={holidayStartDate}
-                  />
-                </>
-              )}
             </div>
           </div>
         )}
@@ -1214,7 +1542,17 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
               <div className="h-full relative">
                 <div
                   className="bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[17px] py-[8px] rounded-[10.134px] cursor-pointer hover:border-gray-300 transition-colors h-full"
-                  onClick={() => setShowGuestsDropdown(!showGuestsDropdown)}
+                  onClick={() => {
+                    setShowGuestsDropdown(true)
+                    setShowCheckInCalendar(false)
+                    setShowCheckOutCalendar(false)
+                    setShowDestDropdown(false)
+                    setShowFromDropdown(false)
+                    setShowToDropdown(false)
+                    setShowFlightDepCalendar(false)
+                    setShowFlightRetCalendar(false)
+                    setShowFlightTravellersDropdown(false)
+                  }}
                 >
                   <div className="flex flex-col gap-[4px] items-start leading-none">
                     <span className="font-satoshi font-normal text-[#666] text-[12px]">Guests & Rooms</span>
@@ -1222,67 +1560,22 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
                   </div>
                   <ChevronDownIcon className="w-5 h-5 text-gray-700" />
                 </div>
-
-                {showGuestsDropdown && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowGuestsDropdown(false) }} />
-                    <div className="absolute right-0 top-full mt-2 bg-white rounded-2xl border border-gray-150 p-4 shadow-xl z-50 w-64 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-700 font-sans">Rooms</span>
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setRooms(Math.max(1, rooms - 1)) }}
-                            className="w-8 h-8 rounded-full border border-gray-250 flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] transition-colors bg-white cursor-pointer"
-                          >
-                            -
-                          </button>
-                          <span className="font-extrabold text-gray-900 w-4 text-center">{rooms}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setRooms(rooms + 1) }}
-                            className="w-8 h-8 rounded-full border border-gray-250 flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] transition-colors bg-white cursor-pointer"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-700 font-sans">Guests</span>
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setGuests(Math.max(1, guests - 1)) }}
-                            className="w-8 h-8 rounded-full border border-gray-250 flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] transition-colors bg-white cursor-pointer"
-                          >
-                            -
-                          </button>
-                          <span className="font-extrabold text-gray-900 w-4 text-center">{guests}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setGuests(guests + 1) }}
-                            className="w-8 h-8 rounded-full border border-gray-250 flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] transition-colors bg-white cursor-pointer"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setShowGuestsDropdown(false) }}
-                        className="bg-[#e53935] text-white py-2 rounded-xl text-xs font-bold hover:bg-red-700 transition-colors cursor-pointer border-none"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </>
-                )}
               </div>
             ) : activeTab === 'holiday' ? (
               <div className="h-full relative">
                 <div
                   className="bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[17px] py-[8px] rounded-[10.134px] cursor-pointer hover:border-gray-300 transition-colors h-full"
-                  onClick={() => setShowHolidayTravelersDropdown(!showHolidayTravelersDropdown)}
+                  onClick={() => {
+                    setShowHolidayTravelersDropdown(true)
+                    setShowHolidayStartDateCalendar(false)
+                    setShowHolidayEndDateCalendar(false)
+                    setShowHolidayDestDropdown(false)
+                    setShowFromDropdown(false)
+                    setShowToDropdown(false)
+                    setShowFlightDepCalendar(false)
+                    setShowFlightRetCalendar(false)
+                    setShowFlightTravellersDropdown(false)
+                  }}
                 >
                   <div className="flex flex-col gap-[4px] items-start leading-none">
                     <span className="font-satoshi font-normal text-[#666] text-[12px]">Travelers</span>
@@ -1290,41 +1583,6 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
                   </div>
                   <ChevronDownIcon className="w-5 h-5 text-gray-700" />
                 </div>
-
-                {showHolidayTravelersDropdown && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setShowHolidayTravelersDropdown(false) }} />
-                    <div className="absolute right-0 top-full mt-2 bg-white rounded-2xl border border-gray-150 p-4 shadow-xl z-50 w-64 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-700 font-sans">Travelers</span>
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setHolidayTravelers(Math.max(1, holidayTravelers - 1)) }}
-                            className="w-8 h-8 rounded-full border border-gray-250 flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] transition-colors bg-white cursor-pointer"
-                          >
-                            -
-                          </button>
-                          <span className="font-extrabold text-gray-900 w-4 text-center">{holidayTravelers}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setHolidayTravelers(holidayTravelers + 1) }}
-                            className="w-8 h-8 rounded-full border border-gray-250 flex items-center justify-center font-bold text-gray-600 hover:border-[#e53935] hover:text-[#e53935] transition-colors bg-white cursor-pointer"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setShowHolidayTravelersDropdown(false) }}
-                        className="bg-[#e53935] text-white py-2 rounded-xl text-xs font-bold hover:bg-red-700 transition-colors cursor-pointer border-none"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                  </>
-                )}
               </div>
             ) : (
               <div
@@ -1448,6 +1706,14 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
         />
       )}
 
+      {showDestDropdown && (
+        <HotelDestinationModal
+          title="Select Destination"
+          onSelect={setHotelDest}
+          onClose={() => setShowDestDropdown(false)}
+        />
+      )}
+
       {showFlightDepCalendar && (
         <CustomDatePicker
           title="Select Departure Date"
@@ -1492,6 +1758,82 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
           cabinClass={flightCabinClass}
           setCabinClass={setFlightCabinClass}
           onClose={() => setShowFlightTravellersDropdown(false)}
+        />
+      )}
+
+      {showCheckInCalendar && (
+        <CustomDatePicker
+          title="Select Check-in Date"
+          selectedDate={checkInDate}
+          onChange={handleCheckInChange}
+          onClose={() => setShowCheckInCalendar(false)}
+        />
+      )}
+
+      {showCheckOutCalendar && (
+        <CustomDatePicker
+          title="Select Check-out Date"
+          selectedDate={checkOutDate}
+          onChange={setCheckOutDate}
+          onClose={() => setShowCheckOutCalendar(false)}
+          minDate={checkInDate}
+        />
+      )}
+
+      {showGuestsDropdown && (
+        <HotelGuestsModal
+          rooms={rooms}
+          setRooms={setRooms}
+          guests={guests}
+          setGuests={setGuests}
+          onClose={() => setShowGuestsDropdown(false)}
+        />
+      )}
+
+      {showHolidayDestDropdown && (
+        <HolidayDestinationModal
+          title="Select Destination"
+          onSelect={setHolidayDest}
+          onClose={() => setShowHolidayDestDropdown(false)}
+        />
+      )}
+
+      {showHolidayStartDateCalendar && (
+        <CustomDatePicker
+          title="Select Start Date"
+          selectedDate={holidayStartDate}
+          onChange={(dateStr) => {
+            setHolidayStartDate(dateStr)
+            const start = new Date(dateStr)
+            const end = new Date(holidayEndDate)
+            if (end <= start) {
+              const nextDate = new Date(start)
+              nextDate.setDate(start.getDate() + 7)
+              const y = nextDate.getFullYear()
+              const m = String(nextDate.getMonth() + 1).padStart(2, '0')
+              const d = String(nextDate.getDate()).padStart(2, '0')
+              setHolidayEndDate(`${y}-${m}-${d}`)
+            }
+          }}
+          onClose={() => setShowHolidayStartDateCalendar(false)}
+        />
+      )}
+
+      {showHolidayEndDateCalendar && (
+        <CustomDatePicker
+          title="Select End Date"
+          selectedDate={holidayEndDate}
+          onChange={setHolidayEndDate}
+          onClose={() => setShowHolidayEndDateCalendar(false)}
+          minDate={holidayStartDate}
+        />
+      )}
+
+      {showHolidayTravelersDropdown && (
+        <HolidayTravelersModal
+          travelers={holidayTravelers}
+          setTravelers={setHolidayTravelers}
+          onClose={() => setShowHolidayTravelersDropdown(false)}
         />
       )}
     </div>

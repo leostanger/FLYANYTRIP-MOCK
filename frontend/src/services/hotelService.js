@@ -9,6 +9,11 @@ export const hotelService = {
     });
   },
 
+  // Search locations (Cities/Regions) from Adivaha API
+  searchLocations: async (term) => {
+    return fetchAPI(`/hotels/locations?term=${encodeURIComponent(term)}`);
+  },
+
   // Get hotel details and room choices
   getHotelDetails: async (hotelId) => {
     return fetchAPI(`/hotels/${hotelId}`);

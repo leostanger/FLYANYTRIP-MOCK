@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import AuthModal from './components/auth/AuthModal';
 import Home from './pages/Home';
@@ -27,10 +28,31 @@ import ReviewBooking from './common/Tour package/pages/ReviewBooking';
 import FinalizePayment from './common/Tour package/pages/FinalizePayment';
 import TourConfirmation from './common/Tour package/pages/TourConfirmation';
 
+function ScrollToTop() {
+  const location = useLocation();
+
+  useEffect(() => {
+    // If the location state says scrollToSearch, let that component handle the scroll behavior instead of resetting to 0,0
+    if (location.state?.scrollToSearch) {
+      return;
+    }
+    window.scrollTo(0, 0);
+  }, [location.pathname, location.state]);
+
+  return null;
+}
+
 function App() {
+  useEffect(() => {
+    sessionStorage.removeItem('lastFlightSearchUrl');
+    sessionStorage.removeItem('lastHotelSearchUrl');
+    sessionStorage.removeItem('lastHolidaySearchUrl');
+  }, []);
+
   return (
     <AuthProvider>
       <Router>
+        <ScrollToTop />
         <AuthModal />
         <Routes>
           <Route path="/" element={<Home />} />

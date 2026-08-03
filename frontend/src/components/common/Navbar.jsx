@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Info } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import logoImage from '../../assets/icons/Group 7412.svg'
@@ -28,8 +28,30 @@ const SECONDARY_LINKS = [
 
 export default function Navbar() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const { user, openAuthModal, logout } = useAuth()
+
+  const handleNavLinkClick = (e, path, label) => {
+    if (label !== 'Flights' && label !== 'Hotels' && label !== 'Holidays') return;
+
+    let saved = null
+    if (label === 'Flights') saved = sessionStorage.getItem('lastFlightSearchUrl')
+    if (label === 'Hotels') saved = sessionStorage.getItem('lastHotelSearchUrl')
+    if (label === 'Holidays') saved = sessionStorage.getItem('lastHolidaySearchUrl')
+
+    if (!saved) {
+      if (location.pathname === '/') {
+        e.preventDefault()
+        const newTab = label === 'Flights' ? 'flights' : label === 'Hotels' ? 'hotels' : label === 'Holidays' ? 'holiday' : 'flights'
+        navigate(`/?tab=${newTab}`, { replace: true })
+        const element = document.getElementById('search-booking-card')
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }
+    }
+  }
 
   useEffect(() => {
     if (location.pathname === '/hotels' && location.search) {
@@ -87,6 +109,7 @@ export default function Navbar() {
                   key={path}
                   to={getNavLinkUrl(path, label)}
                   state={{ scrollToSearch: true }}
+                  onClick={(e) => handleNavLinkClick(e, path, label)}
                   className={`text-[13px] lg:text-[14px] xl:text-[15px] font-satoshi font-medium transition-all no-underline flex items-center gap-[4px] px-[6px] lg:px-[8px] xl:px-[12px] h-full relative whitespace-nowrap shrink-0 nav-link ${isActive
                       ? 'text-[#ef3535]'
                       : 'text-[#3c3c3c] hover:text-[#ef3535]'
@@ -200,7 +223,10 @@ export default function Navbar() {
                   key={path}
                   to={getNavLinkUrl(path, label)}
                   state={{ scrollToSearch: true }}
-                  onClick={() => setMobileOpen(false)}
+                  onClick={(e) => {
+                    setMobileOpen(false)
+                    handleNavLinkClick(e, path, label)
+                  }}
                   className={`block px-3 py-2.5 rounded-lg text-sm font-medium no-underline flex items-center gap-2.5 text-gray-600 hover:text-[#ef3535] whitespace-nowrap`}
                 >
                   {isLucide ? (

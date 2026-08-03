@@ -301,6 +301,100 @@ export default function BookingPage() {
     );
   }
 
+  // If database save/ticketing is in progress, render a premium loading screen with skeletons
+  if (isConfirming) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f5] flex flex-col justify-between font-sans text-gray-800 relative overflow-hidden">
+        <Header />
+        
+        {/* Main Content Area with Skeleton Shimmer */}
+        <div className="max-w-7xl mx-auto px-4 py-6 w-full flex-grow relative">
+          
+          {/* Mock Search Summary skeleton */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-6 animate-pulse flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+              <div className="space-y-2">
+                <div className="w-32 h-4 bg-gray-200 rounded"></div>
+                <div className="w-24 h-3 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div className="w-20 h-8 bg-gray-200 rounded-lg"></div>
+          </div>
+
+          {/* Mock Step Navigation skeleton */}
+          <div className="mb-6 bg-white border border-gray-100 rounded-xl p-3 animate-pulse flex justify-around">
+            <div className="w-24 h-4 bg-gray-200 rounded"></div>
+            <div className="w-24 h-4 bg-gray-200 rounded"></div>
+            <div className="w-24 h-4 bg-gray-200 rounded"></div>
+            <div className="w-24 h-4 bg-gray-200 rounded"></div>
+          </div>
+
+          {/* Mock Grid Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start relative opacity-45 select-none pointer-events-none">
+            {/* Left Column */}
+            <div className="lg:col-span-8 space-y-4">
+              {/* Flight details card skeleton */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4 animate-pulse">
+                <div className="flex justify-between items-center">
+                  <div className="w-24 h-5 bg-gray-200 rounded"></div>
+                  <div className="w-16 h-4 bg-gray-200 rounded"></div>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+                    <div className="space-y-2">
+                      <div className="w-24 h-4 bg-gray-200 rounded"></div>
+                      <div className="w-16 h-3 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                  <div className="w-32 h-6 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+
+              {/* Passenger Card skeleton */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4 animate-pulse">
+                <div className="w-36 h-5 bg-gray-200 rounded"></div>
+                <div className="space-y-3">
+                  <div className="w-full h-10 bg-gray-200 rounded-lg"></div>
+                  <div className="w-full h-10 bg-gray-200 rounded-lg"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="lg:col-span-4 space-y-4">
+              {/* Fare Summary skeleton */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4 animate-pulse">
+                <div className="w-28 h-5 bg-gray-200 rounded"></div>
+                <div className="space-y-3 pt-2">
+                  <div className="flex justify-between"><div className="w-20 h-4 bg-gray-200 rounded"></div><div className="w-12 h-4 bg-gray-200 rounded"></div></div>
+                  <div className="flex justify-between"><div className="w-16 h-4 bg-gray-200 rounded"></div><div className="w-12 h-4 bg-gray-200 rounded"></div></div>
+                  <div className="border-t pt-3 flex justify-between"><div className="w-24 h-5 bg-gray-200 rounded"></div><div className="w-16 h-5 bg-gray-200 rounded"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Simple Floating Loading Spinner & Alert over Skeleton */}
+          <div className="absolute inset-0 bg-transparent flex flex-col items-center justify-center p-4 gap-6">
+            <Loader2 className="w-12 h-12 text-[#F12B19] animate-spin" />
+            <div className="flex items-center gap-2.5 bg-white border border-gray-100/80 px-4 py-2.5 rounded-full shadow-md text-gray-600 font-satoshi text-[12px] font-bold tracking-wide uppercase select-none">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F12B19] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#F12B19]"></span>
+              </span>
+              <span>Do not close or refresh this page</span>
+            </div>
+          </div>
+
+        </div>
+
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex flex-col justify-between font-sans">
       
@@ -393,16 +487,6 @@ export default function BookingPage() {
 
       {/* 3. Global Footer (Unmodified) */}
       <Footer />
-
-      {/* Simple Full-Screen Loading Overlay */}
-      {isConfirming && (
-        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center bg-white/90 backdrop-blur-md text-gray-800 animate-fadeIn">
-          <Loader2 className="w-12 h-12 text-[#F12B19] animate-spin mb-4" />
-          <p className="text-[12.5px] text-gray-900 font-bold uppercase tracking-widest font-satoshi">
-            Do not close or refresh this page
-          </p>
-        </div>
-      )}
 
     </div>
   );
