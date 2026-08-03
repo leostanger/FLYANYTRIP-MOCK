@@ -39,7 +39,7 @@ export default function Sitemap() {
       desc: "User compliance terms, transaction limits, and user private data processing protocols.",
       links: [
         { label: "Privacy Policy Document", path: "/privacy-policy", icon: <FileText className="w-4 h-4 text-gray-500" /> },
-        { label: "Terms of Use Agreement", path: "/terms-of-use", icon: <FileText className="w-4 h-4 text-gray-500" /> }
+        { label: "Terms & Conditions Agreement", path: "/terms-and-conditions", icon: <FileText className="w-4 h-4 text-gray-500" /> }
       ]
     }
   ];

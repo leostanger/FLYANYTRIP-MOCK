@@ -165,6 +165,8 @@ class AdivahaFlightService {
         // We flatten it if necessary
         if (Array.isArray(resultsArray[0])) {
           resultsArray = resultsArray[0];
+        } else if (resultsArray[0] && typeof resultsArray[0] === 'object') {
+          resultsArray = Object.values(resultsArray[0]);
         }
 
         const mappedFlights = resultsArray.map((f, index) => {
@@ -318,6 +320,8 @@ class AdivahaFlightService {
       if (resultsArray && resultsArray.length > 0) {
         if (Array.isArray(resultsArray[0])) {
           resultsArray = resultsArray[0];
+        } else if (resultsArray[0] && typeof resultsArray[0] === 'object') {
+          resultsArray = Object.values(resultsArray[0]);
         }
 
         const mappedFlights = resultsArray.map((f, index) => {

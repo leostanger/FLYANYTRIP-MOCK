@@ -32,9 +32,7 @@ export default function Navbar() {
   const { user, openAuthModal, logout } = useAuth()
 
   useEffect(() => {
-    if (location.pathname === '/flights' && location.search) {
-      sessionStorage.setItem('lastFlightSearchUrl', location.pathname + location.search)
-    } else if (location.pathname === '/hotels' && location.search) {
+    if (location.pathname === '/hotels' && location.search) {
       sessionStorage.setItem('lastHotelSearchUrl', location.pathname + location.search)
     } else if (location.pathname === '/holidays' && location.search) {
       sessionStorage.setItem('lastHolidaySearchUrl', location.pathname + location.search)

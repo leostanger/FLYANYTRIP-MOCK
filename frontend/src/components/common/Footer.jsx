@@ -276,7 +276,7 @@ export default function Footer() {
           <div className="flex items-center justify-center gap-3 md:gap-5 text-gray-400">
             <Link to="/privacy-policy" className="hover:text-white transition-colors no-underline font-light text-[16px]">Privacy Policy</Link>
             <span className="text-[#ef3535] font-bold">•</span>
-            <Link to="/terms-of-use" className="hover:text-white transition-colors no-underline font-light text-[16px]">Terms of Use</Link>
+            <Link to="/terms-and-conditions" className="hover:text-white transition-colors no-underline font-light text-[16px]">Terms & Conditions</Link>
             <span className="text-[#ef3535] font-bold">•</span>
             <Link to="/sitemap" className="hover:text-white transition-colors no-underline font-light text-[16px]">Sitemap</Link>
           </div>

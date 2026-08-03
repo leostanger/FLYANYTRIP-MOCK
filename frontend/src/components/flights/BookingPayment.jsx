@@ -494,7 +494,10 @@ export default function BookingPayment({ flight, selectedFare, passengers = [], 
       </button>
 
       <p className="text-center font-['Quicksand'] text-[11px] text-[#BBBBBB] font-medium pb-2">
-        By proceeding you agree to our Terms &amp; Conditions and Privacy Policy
+        By proceeding you agree to our{' '}
+        <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="underline hover:text-red-500 transition-colors">Terms &amp; Conditions</a>
+        {' '}and{' '}
+        <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-red-500 transition-colors">Privacy Policy</a>
       </p>
 
     </div>

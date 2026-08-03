@@ -415,8 +415,8 @@ export default function AuthModal() {
           {/* Footer Terms */}
           <p className="text-[11px] text-gray-400 text-center leading-relaxed mt-6 font-light">
             By proceeding, you agree to FlyAnyTrip's{' '}
-            <a href="/terms" className="text-gray-600 underline">Terms of Service</a> &{' '}
-            <a href="/privacy" className="text-gray-600 underline">Privacy Policy</a>.
+            <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="text-gray-600 underline hover:text-red-500 transition-colors">Terms &amp; Conditions</a> &{' '}
+            <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-gray-600 underline hover:text-red-500 transition-colors">Privacy Policy</a>.
           </p>
         </div>
       </div>

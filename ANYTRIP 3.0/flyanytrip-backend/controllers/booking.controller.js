@@ -46,6 +46,21 @@ exports.confirmBooking = async (req, res, next) => {
             userId // optional
         } = req.body;
 
+        const normalizedContactDetails = {
+            Email: contactDetails?.Email || contactDetails?.email || "guest@flyanytrip.com",
+            ContactNo: contactDetails?.ContactNo || contactDetails?.contactNo || contactDetails?.mobile || contactDetails?.phone || "9999999999",
+            AddressLine1: contactDetails?.AddressLine1 || contactDetails?.addressLine1 || "Street Address",
+            AddressLine2: contactDetails?.AddressLine2 || contactDetails?.addressLine2 || "",
+            City: contactDetails?.City || contactDetails?.city || "Delhi",
+            State: contactDetails?.State || contactDetails?.state || "Delhi",
+            CountryCode: (contactDetails?.CountryCode || contactDetails?.countryCode || "IN").toUpperCase(),
+            CountryName: contactDetails?.CountryName || contactDetails?.countryName || "India",
+            Nationality: (contactDetails?.Nationality || contactDetails?.nationality || "IN").toUpperCase(),
+            GSTNumber: contactDetails?.GSTNumber || contactDetails?.gstNumber || contactDetails?.GstNumber || null,
+            email: contactDetails?.email || contactDetails?.Email || "guest@flyanytrip.com",
+            mobile: contactDetails?.mobile || contactDetails?.phone || contactDetails?.ContactNo || contactDetails?.contactNo || "9999999999"
+        };
+
         // 1. Call Adivaha API to book the ticket
         let adivahaRes;
         try {
@@ -54,7 +69,7 @@ exports.confirmBooking = async (req, res, next) => {
                 TraceId: traceId,
                 ResultIndex: resultIndex,
                 Passengers: passengers,
-                ContactDetails: contactDetails
+                ContactDetails: normalizedContactDetails
             });
         } catch (adivahaError) {
             console.error('Adivaha bookFlight call failed:', adivahaError);
@@ -87,16 +102,16 @@ exports.confirmBooking = async (req, res, next) => {
         let savedBooking;
 
         try {
-            if (!actualUserId && contactDetails?.Email) {
+            if (!actualUserId && normalizedContactDetails.Email) {
                 let user = await prisma.users.findUnique({
-                    where: { email: contactDetails.Email }
+                    where: { email: normalizedContactDetails.Email }
                 });
                 
                 if (!user) {
                     user = await prisma.users.create({
                         data: {
-                            email: contactDetails.Email,
-                            phone: contactDetails.ContactNo || null,
+                            email: normalizedContactDetails.Email,
+                            phone: normalizedContactDetails.ContactNo || null,
                             first_name: passengers?.[0]?.FirstName || 'Guest',
                             last_name: passengers?.[0]?.LastName || 'User',
                             user_type: 'GUEST'
@@ -219,6 +234,9 @@ exports.confirmBooking = async (req, res, next) => {
                 }
 
                 return { booking, flightBooking };
+            }, {
+                maxWait: 15000,
+                timeout: 30000
             });
 
         } catch (dbError) {
@@ -231,7 +249,7 @@ exports.confirmBooking = async (req, res, next) => {
         }
 
         // 4. Generate PDF Invoice and Send Email (Awaited for serverless compatibility)
-        if (contactDetails?.Email) {
+        if (normalizedContactDetails.Email) {
             try {
         console.log(`Starting invoice generation for PNR: ${pnr}...`);
                 
@@ -283,10 +301,10 @@ exports.confirmBooking = async (req, res, next) => {
                     baseFare:       flightSnapshot?.raw?.Fare?.BaseFare   || Math.round(savedBooking.booking.total_amount * 0.7),
                     taxes:          flightSnapshot?.raw?.Fare?.Tax         || Math.round(savedBooking.booking.total_amount * 0.3),
                     status:         'CONFIRMED',
-                    contactEmail:   contactDetails.Email,
-                    contactPhone:   contactDetails.ContactNo,
-                    gstNumber:      contactDetails.GSTNumber || contactDetails.GstNumber || 'N/A',
-                    state:          contactDetails.State || 'N/A',
+                    contactEmail:   normalizedContactDetails.Email,
+                    contactPhone:   normalizedContactDetails.ContactNo,
+                    gstNumber:      normalizedContactDetails.GSTNumber || 'N/A',
+                    state:          normalizedContactDetails.State || 'N/A',
                 };
 
                 const docDefinition = getInvoiceDocDefinition(invoiceData);
@@ -297,7 +315,7 @@ exports.confirmBooking = async (req, res, next) => {
                     console.error('Error generating PDF invoice:', pdfErr.message);
                 }
                 
-                await emailService.sendInvoiceEmail(contactDetails.Email, invoiceData, pdfBuffer);
+                await emailService.sendInvoiceEmail(normalizedContactDetails.Email, invoiceData, pdfBuffer);
                 
             } catch (emailError) {
                 console.error('Error generating/sending invoice email:', emailError.message);

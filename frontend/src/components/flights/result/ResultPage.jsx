@@ -315,12 +315,19 @@ export default function ResultPage() {
           }).filter(Boolean);
 
           setLiveFlights(transformed);
+          if (transformed.length > 0) {
+            sessionStorage.setItem('lastFlightSearchUrl', window.location.pathname + window.location.search);
+          } else {
+            sessionStorage.removeItem('lastFlightSearchUrl');
+          }
         } else {
           setLiveFlights([]);
+          sessionStorage.removeItem('lastFlightSearchUrl');
         }
       } catch (err) {
         console.warn("Live API Search error:", err.message);
         setLiveFlights([]);
+        sessionStorage.removeItem('lastFlightSearchUrl');
       } finally {
         setLoading(false);
       }
@@ -501,13 +508,22 @@ export default function ResultPage() {
                 <div className="py-12 px-4 flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-gray-200 shadow-xs space-y-3 font-satoshi">
                   <p className="text-gray-800 font-bold text-base">No flights available from Adivaha API for this route & date.</p>
                   <p className="text-gray-500 text-xs max-w-md">Please try modifying your origin/destination, selecting a different date, or clearing active filters.</p>
-                  <button
-                    type="button"
-                    onClick={handleResetFilters}
-                    className="px-5 py-2 bg-[#F12B19] text-white rounded-xl text-xs font-bold hover:bg-red-700 transition-colors cursor-pointer"
-                  >
-                    Reset Filters
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleResetFilters}
+                      className="px-5 py-2 border border-gray-300 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
+                      Reset Filters
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/?tab=flights', { state: { scrollToSearch: true } })}
+                      className="px-5 py-2 bg-[#F12B19] text-white rounded-xl text-xs font-bold hover:bg-red-700 transition-colors cursor-pointer"
+                    >
+                      Search Again
+                    </button>
+                  </div>
                 </div>
               )}
             </motion.div>

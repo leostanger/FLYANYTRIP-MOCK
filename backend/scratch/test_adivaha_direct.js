@@ -15,7 +15,7 @@ async function testAdivaha() {
     console.log('Locations Status:', locRes.status);
     // console.log('Locations Data:', locRes.data);
     
-    console.log('Testing flightSearch...');
+    console.log('Testing flightSearch (POST)...');
     const searchPayload = {
       action: "flightSearch",
       adults: "1",
@@ -24,16 +24,16 @@ async function testAdivaha() {
       isoneway: "Yes",
       From_IATACODE: "DEL",
       To_IATACODE: "BOM",
-      departure_date: "2026-08-01",
+      departure_date: "2026-08-20",
       return_date: "",
-      Flights_category: "Economy"
+      Flights_category: "All"
     };
 
-    const searchRes = await axios.post(ADIVAHA_BASE_URL, searchPayload, {
+    const searchRes = await axios.post(ADIVAHA_BASE_URL + '/?action=flightSearch', searchPayload, {
       headers: { 'PID': PID, 'x-api-key': API_KEY }
     });
     console.log('Search Status:', searchRes.status);
-    console.log('Search Data (partial):', JSON.stringify(searchRes.data).substring(0, 500));
+    console.log('Search Data (partial):', JSON.stringify(searchRes.data).substring(0, 1000));
 
   } catch (error) {
     console.error('Error:', error.message);

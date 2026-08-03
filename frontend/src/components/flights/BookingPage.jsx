@@ -7,7 +7,7 @@
 
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CheckCircle2, Home, Loader2 } from "lucide-react";
+import { CheckCircle2, Home, Plane } from "lucide-react";
 import DownloadInvoiceButton from "../../common/DownloadInvoiceButton";
 import { saveBooking } from "../../common/useBookings";
 
@@ -66,6 +66,25 @@ export default function BookingPage() {
   });
   const [bookingData, setBookingData] = useState(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmStage, setConfirmStage] = useState(0);
+
+  const loadingStages = [
+    { title: "Verifying Payment", desc: "Confirming your transaction details securely..." },
+    { title: "Contacting Airline", desc: "Securing your seats and checking availability..." },
+    { title: "Registering Passengers", desc: "Saving passenger details and issuing e-ticket..." },
+    { title: "Finalizing Booking", desc: "Creating your booking record and generating invoice..." }
+  ];
+
+  React.useEffect(() => {
+    if (!isConfirming) {
+      setConfirmStage(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setConfirmStage(prev => (prev < 3 ? prev + 1 : prev));
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [isConfirming]);
 
   // Passenger & Contact info state from Step 1
   // Auto-populate passenger slots based on search query (adults + children)
@@ -282,6 +301,128 @@ export default function BookingPage() {
     );
   }
 
+  // If database save/ticketing is in progress, render a premium loading screen (full page instead of modal)
+  if (isConfirming) {
+    const stage = loadingStages[confirmStage] || loadingStages[0];
+    return (
+      <div className="min-h-screen bg-[#f5f5f5] flex flex-col justify-between font-sans text-gray-800 relative overflow-hidden">
+        <Header />
+        
+        {/* Main Content Area with Skeleton Shimmer */}
+        <div className="max-w-7xl mx-auto px-4 py-6 w-full flex-grow relative">
+          
+          {/* Mock Search Summary skeleton */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-6 animate-pulse flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+              <div className="space-y-2">
+                <div className="w-32 h-4 bg-gray-200 rounded"></div>
+                <div className="w-24 h-3 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div className="w-20 h-8 bg-gray-200 rounded-lg"></div>
+          </div>
+
+          {/* Mock Step Navigation skeleton */}
+          <div className="mb-6 bg-white border border-gray-100 rounded-xl p-3 animate-pulse flex justify-around">
+            <div className="w-24 h-4 bg-gray-200 rounded"></div>
+            <div className="w-24 h-4 bg-gray-200 rounded"></div>
+            <div className="w-24 h-4 bg-gray-200 rounded"></div>
+            <div className="w-24 h-4 bg-gray-200 rounded"></div>
+          </div>
+
+          {/* Mock Grid Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start relative opacity-40 select-none pointer-events-none">
+            {/* Left Column */}
+            <div className="lg:col-span-8 space-y-4">
+              {/* Flight details card skeleton */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4 animate-pulse">
+                <div className="flex justify-between items-center">
+                  <div className="w-24 h-5 bg-gray-200 rounded"></div>
+                  <div className="w-16 h-4 bg-gray-200 rounded"></div>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+                    <div className="space-y-2">
+                      <div className="w-24 h-4 bg-gray-200 rounded"></div>
+                      <div className="w-16 h-3 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                  <div className="w-32 h-6 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+
+              {/* Passenger Card skeleton */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4 animate-pulse">
+                <div className="w-36 h-5 bg-gray-200 rounded"></div>
+                <div className="space-y-3">
+                  <div className="w-full h-10 bg-gray-200 rounded-lg"></div>
+                  <div className="w-full h-10 bg-gray-200 rounded-lg"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="lg:col-span-4 space-y-4">
+              {/* Fare Summary skeleton */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4 animate-pulse">
+                <div className="w-28 h-5 bg-gray-200 rounded"></div>
+                <div className="space-y-3 pt-2">
+                  <div className="flex justify-between"><div className="w-20 h-4 bg-gray-200 rounded"></div><div className="w-12 h-4 bg-gray-200 rounded"></div></div>
+                  <div className="flex justify-between"><div className="w-16 h-4 bg-gray-200 rounded"></div><div className="w-12 h-4 bg-gray-200 rounded"></div></div>
+                  <div className="border-t pt-3 flex justify-between"><div className="w-24 h-5 bg-gray-200 rounded"></div><div className="w-16 h-5 bg-gray-200 rounded"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Centered Professional Loading Card */}
+          <div className="absolute inset-0 bg-[#f5f5f5]/30 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white/95 border border-gray-100 p-10 rounded-3xl shadow-2xl flex flex-col items-center max-w-md w-full text-center animate-scaleIn">
+              {/* Spinning loader with premium flight animation */}
+              <div className="relative w-24 h-24 mb-6 flex items-center justify-center">
+                {/* Spinning dotted circle */}
+                <div 
+                  className="absolute inset-0 rounded-full border-4 border-dashed border-[#F12B19] animate-spin" 
+                  style={{ animationDuration: '6s' }}
+                ></div>
+                {/* Inner pulsing circle with Plane icon */}
+                <div className="absolute inset-3 bg-red-50 rounded-full flex items-center justify-center shadow-inner">
+                  <Plane className="w-8 h-8 text-[#F12B19] animate-pulse transform -rotate-45" />
+                </div>
+              </div>
+
+              <h3 className="text-xl font-extrabold mb-2 tracking-tight text-gray-900 font-satoshi">
+                {stage.title}
+              </h3>
+              
+              <p className="text-gray-500 mb-6 max-w-sm leading-relaxed text-xs font-satoshi min-h-[32px]">
+                {stage.desc}
+              </p>
+
+              {/* Progress bar */}
+              <div className="w-full bg-gray-100 rounded-full h-1.5 mb-6 overflow-hidden relative">
+                <div 
+                  className="absolute left-0 top-0 h-full bg-[#F12B19] rounded-full transition-all duration-700 ease-out" 
+                  style={{ width: `${(confirmStage + 1) * 25}%` }}
+                ></div>
+              </div>
+
+              <div className="flex items-center gap-2 text-[10px] text-[#F12B19] font-bold uppercase tracking-wider bg-red-50 px-3 py-1.5 rounded-full border border-red-100">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F12B19] animate-ping"></span>
+                Do not close or refresh this page
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex flex-col justify-between font-sans">
       
@@ -374,27 +515,6 @@ export default function BookingPage() {
 
       {/* 3. Global Footer (Unmodified) */}
       <Footer />
-
-      {/* Premium Loader Screen during database save and ticketing */}
-      {isConfirming && (
-        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center bg-black/60 backdrop-blur-md text-white font-sans">
-          <div className="bg-[#1a1a1a]/95 border border-white/10 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 text-center">
-            {/* Spinning loader with gradient ring */}
-            <div className="relative w-16 h-16 mb-6 flex items-center justify-center">
-              <Loader2 className="w-12 h-12 text-[#e53935] animate-spin" />
-            </div>
-            
-            <h3 className="text-xl font-bold mb-2 tracking-wide text-white font-satoshi">Confirming Booking</h3>
-            <p className="text-sm text-gray-300 mb-4 px-2 leading-relaxed font-satoshi">
-              We are connecting with the airline, issuing your ticket, and saving passenger details to your Neon database...
-            </p>
-            <div className="flex items-center gap-2 text-xs text-red-400 font-semibold uppercase tracking-wider bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
-              Do not close or refresh this page
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

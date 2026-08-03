@@ -488,9 +488,9 @@ export default function FinalizePayment() {
             {/* Terms text */}
             <p className="text-[11px] text-gray-400 text-center font-medium -mt-2">
               By proceeding, you agree to our{' '}
-              <a href="#terms" className="underline hover:text-red-500 transition-colors">Terms &amp; Conditions</a>
+              <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" className="underline hover:text-red-500 transition-colors">Terms &amp; Conditions</a>
               {' '}and{' '}
-              <a href="#privacy" className="underline hover:text-red-500 transition-colors">Privacy Policy</a>
+              <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="underline hover:text-red-500 transition-colors">Privacy Policy</a>
             </p>
           </div>
 

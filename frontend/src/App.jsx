@@ -15,7 +15,7 @@ import CancelBooking from './pages/CancelBooking';
 import PNRStatus from './pages/PNRStatus';
 import Careers from './pages/Careers';
 import PrivacyPolicy from './pages/PrivacyPolicy';
-import TermsOfUse from './pages/TermsOfUse';
+import TermsAndConditions from './pages/TermsAndConditions';
 import Sitemap from './pages/Sitemap';
 
 // Tour Packages
@@ -49,7 +49,10 @@ function App() {
           <Route path="/pnr-status" element={<PNRStatus />} />
           <Route path="/careers" element={<Careers />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/terms-of-use" element={<TermsOfUse />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsAndConditions />} />
+          <Route path="/terms-of-use" element={<TermsAndConditions />} />
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
           <Route path="/sitemap" element={<Sitemap />} />
 
           {/* Tour Packages Routes */}

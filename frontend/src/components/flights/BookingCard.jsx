@@ -357,14 +357,13 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
   })()
 
   // Helper to generate dynamic fallback price tag
-  const getFareForDate = (dateStr, dayNum) => {
+  const getFareForDate = (dateStr, dayNum, dObj) => {
     if (faresMap[dateStr]) {
       const p = Number(String(faresMap[dateStr]).replace(/[^\d.]/g, ''))
       if (!isNaN(p) && p > 0) {
         return `₹${p >= 1000 ? (p / 1000).toFixed(1) + 'k' : p}`
       }
     }
-    // No API data found for this date, do not show any mock price
     return null
   }
 
@@ -427,7 +426,7 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
             const dateStr = `${y}-${m}-${dayNum}`
 
             const isSelected = selectedDate === dateStr
-            const fareLabel = getFareForDate(dateStr, d.getDate())
+            const fareLabel = getFareForDate(dateStr, d.getDate(), d)
 
             return (
               <button
