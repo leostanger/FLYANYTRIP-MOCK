@@ -1,0 +1,18 @@
+[DB ERROR] 2026-08-01T16:26:27.136Z: PrismaClientKnownRequestError: Transaction API error: Unable to start a transaction in the given time.
+    at #c (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\@prisma\client\runtime\client.js:57:14054)
+    at jt.transaction (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\@prisma\client\runtime\client.js:58:1816)
+    at async Proxy._transactionWithCallback (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\@prisma\client\runtime\client.js:75:4678)
+    at async exports.confirmBooking (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\controllers\booking.controller.js:264:28)
+[DB ERROR] 2026-08-01T16:38:01.754Z: PrismaClientKnownRequestError: Transaction API error: Unable to start a transaction in the given time.
+    at #c (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\@prisma\client\runtime\client.js:57:14054)
+    at jt.transaction (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\@prisma\client\runtime\client.js:58:1816)
+    at async Proxy._transactionWithCallback (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\@prisma\client\runtime\client.js:75:4678)
+    at async exports.confirmBooking (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\controllers\booking.controller.js:264:28)
+[DB ERROR] 2026-08-01T16:38:36.267Z: PrismaClientKnownRequestError: Transaction API error: Unable to start a transaction in the given time.
+    at #c (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\@prisma\client\runtime\client.js:57:14054)
+    at jt.transaction (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\@prisma\client\runtime\client.js:58:1816)
+    at async Proxy._transactionWithCallback (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\@prisma\client\runtime\client.js:75:4678)
+    at async exports.confirmBooking (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\controllers\booking.controller.js:264:28)
+[CONFIRM ERROR] 2026-08-04T07:36:11.594Z: TypeError: adivahaRes?.status?.toLowerCase is not a function
+    at exports.confirmBooking (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\controllers\booking.controller.js:287:33)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
