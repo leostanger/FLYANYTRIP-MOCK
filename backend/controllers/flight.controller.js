@@ -213,27 +213,19 @@ const searchFlights = async (req, res, next) => {
     }
 
     // Call the real Adivaha API via our integration service
-    let searchResults = { flights: [] };
+    let searchResults;
     try {
       searchResults = await adivahaService.searchFlights(searchParams);
     } catch (apiError) {
-      console.warn('Adivaha API failed. Serving mock fallback flights:', apiError.message);
+      console.error('Adivaha API failed:', apiError.message);
+      return res.status(500).json({ success: false, message: 'some error has occured' });
     }
 
     if (!searchResults || !searchResults.flights || searchResults.flights.length === 0) {
-      console.log('No flights returned from Adivaha. Serving mock fallback flights...');
-      const mockFlights = generateMockFlights(
-        searchParams.origin || 'DEL',
-        searchParams.destination || 'BOM',
-        searchParams.departureDate || new Date().toISOString().split('T')[0],
-        searchParams.cabinClass || 'Economy'
-      );
-      
       return res.status(200).json({
         success: true,
-        source: 'mock',
-        data: { flights: mockFlights },
-        message: 'Mock fallback flights served.'
+        source: 'api',
+        data: { flights: [] }
       });
     }
 
@@ -272,25 +264,19 @@ const searchMultiCityFlights = async (req, res, next) => {
       });
     }
 
-    let searchResults = { flights: [] };
+    let searchResults;
     try {
       searchResults = await adivahaService.multicityFlightSearch(searchParams);
     } catch (apiError) {
-      console.warn('Adivaha Multi-City API failed. Serving mock fallback flights:', apiError.message);
+      console.error('Adivaha Multi-City API failed:', apiError.message);
+      return res.status(500).json({ success: false, message: 'some error has occured' });
     }
 
     if (!searchResults || !searchResults.flights || searchResults.flights.length === 0) {
-      console.log('No multi-city flights returned from Adivaha. Serving mock fallback flights...');
-      const mockFlights = generateMultiCityMockFlights(
-        searchParams.segments || [],
-        searchParams.cabinClass || 'Economy'
-      );
-      
       return res.status(200).json({
         success: true,
-        source: 'mock',
-        data: { flights: mockFlights },
-        message: 'Mock fallback flights served.'
+        source: 'api',
+        data: { flights: [] }
       });
     }
 
@@ -325,28 +311,12 @@ const searchLocations = async (req, res, next) => {
     try {
       locations = await adivahaService.searchLocations(term, 10);
     } catch (apiError) {
-      console.warn('Adivaha Search Locations failed:', apiError.message);
+      console.error('Adivaha Search Locations failed:', apiError.message);
+      return res.status(500).json({ success: false, message: 'some error has occured' });
     }
 
     if (!locations || locations.ErrorCode || (locations.airports && locations.airports.length === 0)) {
-      console.log('No locations returned from Adivaha. Serving mock locations...');
-      const mockAllLocations = [
-        { code: 'DEL', CityCode: 'DEL', AirportCode: 'DEL', name: 'Indira Gandhi International Airport', AirportName: 'Indira Gandhi International Airport', CityName: 'Delhi', CountryCode: 'IN', CountryName: 'India' },
-        { code: 'BOM', CityCode: 'BOM', AirportCode: 'BOM', name: 'Chhatrapati Shivaji Maharaj International Airport', AirportName: 'Chhatrapati Shivaji Maharaj International Airport', CityName: 'Mumbai', CountryCode: 'IN', CountryName: 'India' },
-        { code: 'BLR', CityCode: 'BLR', AirportCode: 'BLR', name: 'Kempegowda International Airport', AirportName: 'Kempegowda International Airport', CityName: 'Bengaluru', CountryCode: 'IN', CountryName: 'India' },
-        { code: 'DXB', CityCode: 'DXB', AirportCode: 'DXB', name: 'Dubai International Airport', AirportName: 'Dubai International Airport', CityName: 'Dubai', CountryCode: 'AE', CountryName: 'United Arab Emirates' },
-        { code: 'SIN', CityCode: 'SIN', AirportCode: 'SIN', name: 'Changi Airport', AirportName: 'Changi Airport', CityName: 'Singapore', CountryCode: 'SG', CountryName: 'Singapore' },
-        { code: 'LHR', CityCode: 'LHR', AirportCode: 'LHR', name: 'London Heathrow Airport', AirportName: 'London Heathrow Airport', CityName: 'London', CountryCode: 'GB', CountryName: 'United Kingdom' },
-        { code: 'JFK', CityCode: 'JFK', AirportCode: 'JFK', name: 'John F. Kennedy International Airport', AirportName: 'John F. Kennedy International Airport', CityName: 'New York', CountryCode: 'US', CountryName: 'United States' }
-      ];
-
-      const queryTerm = term.toLowerCase();
-      const filtered = mockAllLocations.filter(loc => 
-        loc.code.toLowerCase().includes(queryTerm) ||
-        loc.name.toLowerCase().includes(queryTerm) ||
-        loc.CityName.toLowerCase().includes(queryTerm)
-      );
-      locations = { airports: filtered };
+      locations = { airports: [] };
     }
 
     apiCache.set(cacheKey, locations);
@@ -378,8 +348,8 @@ const getCalendarFare = async (req, res, next) => {
     try {
       result = await adivahaService.getCalendarFare({ origin, destination, departureDate, cabinClass });
     } catch (apiError) {
-      console.warn('Adivaha Calendar Fare API failed/timed out. Serving empty fallback:', apiError.message);
-      result = { SearchResults: [] };
+      console.error('Adivaha Calendar Fare API failed/timed out:', apiError.message);
+      return res.status(500).json({ success: false, message: 'some error has occured' });
     }
     
     // Check if response contains valid results - handle multiple possible response structures
@@ -406,25 +376,6 @@ const getCalendarFare = async (req, res, next) => {
         };
         fares = findSearchResults(respData) || [];
       }
-    }
-    
-    if (!fares || fares.length === 0) {
-      console.log('No calendar fares returned from Adivaha. Serving mock calendar fares...');
-      const mockFares = [];
-      const start = new Date(departureDate);
-      start.setDate(start.getDate() - 15);
-      for (let i = 0; i < 30; i++) {
-        const d = new Date(start);
-        d.setDate(d.getDate() + i);
-        const iso = d.toISOString().split('T')[0];
-        const dayOffset = Math.abs(Math.round((d.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-        const price = Math.ceil(3500 + (dayOffset % 5) * 180 + (dayOffset % 3) * 240);
-        mockFares.push({
-          DepartureDate: iso,
-          Fare: price
-        });
-      }
-      fares = mockFares;
     }
     
     apiCache.set(cacheKey, fares);
@@ -460,7 +411,8 @@ const updateCalendarFareOfDay = async (req, res, next) => {
     try {
       result = await adivahaService.updateCalendarFareOfDay({ origin, destination, departureDate, cabinClass });
     } catch (apiError) {
-      console.warn('Adivaha updateCalendarFareOfDay failed:', apiError.message);
+      console.error('Adivaha updateCalendarFareOfDay failed:', apiError.message);
+      return res.status(500).json({ success: false, message: 'some error has occured' });
     }
     
     // Try multiple response paths for DayFare
@@ -468,15 +420,6 @@ const updateCalendarFareOfDay = async (req, res, next) => {
                   result?.Response?.DayFare ||
                   result?.DayFare ||
                   null;
-
-    if (!dayFare) {
-      const dVal = new Date(departureDate);
-      const dayOffset = Math.abs(Math.round((dVal.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-      dayFare = {
-        Fare: Math.ceil(3500 + (dayOffset % 5) * 180 + (dayOffset % 3) * 240),
-        Date: departureDate
-      };
-    }
 
     const data = { dayFare, raw: result };
     apiCache.set(cacheKey, data);

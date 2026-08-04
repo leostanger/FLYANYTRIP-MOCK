@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
+import { hotelService } from '../services/hotelService'
 import Navbar from '../components/common/Navbar'
 import TopBar from '../components/common/TopBar'
 import Footer from '../components/common/Footer'
@@ -50,123 +51,7 @@ import {
   Tv
 } from 'lucide-react'
 
-// Figma Enriched Hotel Data
-const HOTELS_DATA = [
-  {
-    id: 1,
-    name: 'Radisson Blu Goa',
-    location: 'Cavelossim · Goa',
-    locality: 'Colva',
-    rating: 4.8,
-    stars: 5,
-    reviews: '3,120',
-    price: 9800,
-    originalPrice: 14000,
-    discount: 30,
-    taxes: 1176,
-    badge: 'Luxury',
-    image: hotelImage1,
-    amenities: ['Free WiFi', 'Swiming Pool', 'Spa', 'Beach', 'Bar'],
-    description: 'A luxury beachfront retreat offering elegant rooms, premium amenities, and easy access to Cavelossim Beach. Perfect for family vacation...',
-    popularity: 95,
-    type: 'Resort'
-  },
-  {
-    id: 2,
-    name: 'Hilton Goa Resort',
-    location: 'Cavelossim · Goa',
-    locality: 'Colva',
-    rating: 4.6,
-    stars: 5,
-    reviews: '3,120',
-    price: 12600,
-    originalPrice: 14000,
-    discount: 10,
-    taxes: 1176,
-    badge: 'Luxury',
-    image: hotelImage2,
-    amenities: ['Free WiFi', 'Swiming Pool', 'Spa', 'Beach', 'Bar'],
-    description: 'A luxury beachfront retreat offering elegant rooms, premium amenities, and easy access to Cavelossim Beach. Perfect for family vacations, romantic get...',
-    popularity: 90,
-    type: 'Resort'
-  },
-  {
-    id: 3,
-    name: 'The Park Calangute',
-    location: 'Calangute · Goa',
-    locality: 'Calangute',
-    rating: 4.4,
-    stars: 5,
-    reviews: '650',
-    price: 8075,
-    originalPrice: 9500,
-    discount: 15,
-    taxes: 835,
-    badge: 'Boutique',
-    image: hotelImage3,
-    amenities: ['Free WiFi', 'Swiming Pool', 'Gym', 'Garden', 'Restaurant'],
-    description: 'Chic boutique hotel blending contemporary style with Goan charm, situated close to Calangute Beach. Ideal for solo travelers and couples.',
-    popularity: 85,
-    type: 'Hotel'
-  },
-  {
-    id: 4,
-    name: 'Casa De Goa',
-    location: 'Anjuna · Goa',
-    locality: 'Anjuna',
-    rating: 4.2,
-    stars: 5,
-    reviews: '1,450',
-    price: 2560,
-    originalPrice: 3200,
-    discount: 20,
-    taxes: 256,
-    badge: 'Budget',
-    image: hotelImage4,
-    amenities: ['Free WiFi', 'Bar', 'Terrace', 'Free Parking', 'Cafe'],
-    description: 'Cozy budget stays featuring vibrant decor, great local vibes, and a central location near Anjuna Beach and the flea market.',
-    popularity: 75,
-    type: 'Hotel'
-  },
-  {
-    id: 5,
-    name: 'Green Leaf Eco Resort',
-    location: 'Arpora · Goa',
-    locality: 'Baga',
-    rating: 4.5,
-    stars: 5,
-    reviews: '670',
-    price: 7020,
-    originalPrice: 7800,
-    discount: 10,
-    taxes: 702,
-    badge: 'Eco-Friendly',
-    image: hotelImage5,
-    amenities: ['Free WiFi', 'Swiming Pool', 'Yoga', 'Garden', 'Organic Cafe'],
-    description: 'Sustainable resort nestled in nature with organic dining, wellness activities, and a tranquil ambiance for mindful travelers.',
-    popularity: 80,
-    type: 'Resort'
-  },
-  {
-    id: 6,
-    name: 'Taj Palace Delhi',
-    location: 'Chanakyapuri · New Delhi',
-    locality: 'Delhi',
-    rating: 4.9,
-    stars: 5,
-    reviews: '2,100',
-    price: 15500,
-    originalPrice: 22000,
-    discount: 30,
-    taxes: 1860,
-    badge: 'Luxury',
-    image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&q=80',
-    amenities: ['Free WiFi', 'Swiming Pool', 'Spa', 'Fine Dining', 'Gym'],
-    description: 'An iconic landmark in the heart of Delhi, offering peerless hospitality, ultra-luxury accommodation, and award-winning dining options.',
-    popularity: 98,
-    type: 'Hotel'
-  }
-]
+
 
 export default function HotelsPage() {
   const [searchParams] = useSearchParams()
@@ -177,6 +62,72 @@ export default function HotelsPage() {
   const checkout = searchParams.get('checkout') || '2026-12-23'
   const rooms = parseInt(searchParams.get('rooms') || '1')
   const guests = parseInt(searchParams.get('guests') || '2')
+
+  const [liveHotels, setLiveHotels] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const fetchHotels = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const locRes = await hotelService.searchLocations(dest.split(',')[0].trim());
+        const regionid = locRes?.data?.cities?.find(c => c.countryCode === 'IN')?.destinationCode || 'GOO';
+        
+        const searchRes = await hotelService.searchHotels({
+          regionid,
+          countryCode: 'IN',
+          checkIn: checkin,
+          checkOut: checkout,
+          rooms,
+          adults: guests,
+          children: 0,
+          childAge: 0,
+          page: 1
+        });
+        
+        if (searchRes.success && searchRes.data?.responseData?.HotelLists?.HotelList) {
+          const apiHotels = searchRes.data.responseData.HotelLists.HotelList.map((h, i) => {
+            const firstRoom = h.RoomTypes?.[0]?.rates?.[0];
+            const rawPrice = parseFloat(firstRoom?.net || h.LowRate || 0);
+            const multiplier = h.rateCurrencyCode === 'EUR' ? 90 : h.rateCurrencyCode === 'USD' ? 83 : 1;
+            const price = rawPrice * multiplier;
+            return {
+              id: h.EANHotelID,
+              name: h.Name,
+              location: `${h.City} · ${h.Country}`,
+              locality: h.City,
+              rating: (Math.random() * (5.0 - 3.5) + 3.5).toFixed(1), // Mock rating since API doesn't provide user reviews
+              stars: parseInt(h.StarRating) || 3,
+              reviews: Math.floor(Math.random() * 1000) + 50,
+              price: price,
+              originalPrice: price * 1.2,
+              discount: 20,
+              taxes: price * 0.18,
+              badge: h.StarRating >= 4 ? 'Luxury' : 'Standard',
+              image: h.thumbnail || '',
+              amenities: ['Free WiFi', 'Air Conditioning', h.boardName || 'Room Only'].filter(Boolean),
+              description: `${h.Name} located at ${h.Address1}. A beautiful property offering ${h.StarRating} star amenities in ${h.City}.`,
+              popularity: 100 - i,
+              type: h.accommodationTypeCode || 'Hotel',
+              raw: h // Keep raw data for booking
+            };
+          });
+          setLiveHotels(apiHotels);
+        } else {
+          setLiveHotels([]);
+        }
+      } catch (err) {
+        console.error("Error fetching hotels:", err);
+        setError("Failed to fetch hotels. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchHotels();
+  }, [dest, checkin, checkout, rooms, guests]);
 
   // Calculate nights
   const [nights, setNights] = useState(3)
@@ -229,11 +180,11 @@ export default function HotelsPage() {
 
   // Filter conditions state
   const [minPrice, setMinPrice] = useState(1000)
-  const [maxPrice, setMaxPrice] = useState(20000)
-  const [starRatings, setStarRatings] = useState([5]) // checked star ratings: default to 5-star
+  const [maxPrice, setMaxPrice] = useState(100000)
+  const [starRatings, setStarRatings] = useState([]) // default to empty
   const [amenitySearch, setAmenitySearch] = useState('')
   const [showAllAmenities, setShowAllAmenities] = useState(false)
-  const [selectedAmenities, setSelectedAmenities] = useState(['Free WiFi']) // default to Free WiFi checked
+  const [selectedAmenities, setSelectedAmenities] = useState([]) // default to empty
   const [selectedTypes, setSelectedTypes] = useState([])
   const [selectedLocalities, setSelectedLocalities] = useState([])
 
@@ -277,30 +228,22 @@ export default function HotelsPage() {
   // Reset all filters
   const handleResetFilters = () => {
     setMinPrice(1000)
-    setMaxPrice(20000)
+    setMaxPrice(100000)
 
-    setStarRatings([5])
-    setSelectedAmenities(['Free WiFi'])
+    setStarRatings([])
+    setSelectedAmenities([])
     setSelectedTypes([])
     setSelectedLocalities([])
     setAmenitySearch('')
   }
 
   // Filtering Logic
-  const filteredHotels = HOTELS_DATA.filter(hotel => {
-    // 1. Destination / Locality text filter
-    const destLower = dest.toLowerCase()
-    const matchesDest =
-      hotel.name.toLowerCase().includes(destLower) ||
-      hotel.location.toLowerCase().includes(destLower) ||
-      hotel.locality.toLowerCase().includes(destLower) ||
-      (destLower.includes('goa') && hotel.location.toLowerCase().includes('goa')) ||
-      (destLower.includes('delhi') && hotel.location.toLowerCase().includes('delhi'))
-
-    if (!matchesDest) return false
+  const filteredHotels = liveHotels.filter(hotel => {
+    // 1. Destination filter removed - API results are already for the requested destination
 
     // 2. Price filter
-    if (hotel.price < minPrice || hotel.price > maxPrice) return false
+    if (hotel.price < minPrice) return false
+    if (maxPrice < 100000 && hotel.price > maxPrice) return false
 
     // 3. Star Rating filter
     if (starRatings.length > 0) {
@@ -687,25 +630,35 @@ export default function HotelsPage() {
 
                 {!collapsed.price && (() => {
                   const PRICE_MIN = 1000;
-                  const PRICE_MAX = 20000;
+                  const PRICE_MAX = 100000;
                   const minPct = ((minPrice - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
                   const maxPct = ((maxPrice - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
+                  
+                  // Math to accurately align the custom track with the centers of the input thumbs
+                  const THUMB_SIZE = 18.507;
+                  const THUMB_HALF = THUMB_SIZE / 2;
+                  const leftPos = `calc(${minPct}% + ${THUMB_HALF - (minPct * THUMB_SIZE / 100)}px)`;
+                  const rightPos = `calc(${100 - maxPct}% + ${THUMB_HALF - ((100 - maxPct) * THUMB_SIZE / 100)}px)`;
+
                   return (
                     <div className="px-1">
                       {/* Price labels */}
                       <div className="flex items-center justify-between mb-3 text-[14px] font-bold text-[#333]">
                         <span>₹{minPrice.toLocaleString('en-IN')}</span>
-                        <span>₹{maxPrice.toLocaleString('en-IN')}</span>
+                        <span>₹{maxPrice >= PRICE_MAX ? '1,00,000+' : maxPrice.toLocaleString('en-IN')}</span>
                       </div>
 
                       {/* Dual-handle slider track */}
                       <div className="relative h-[20px] flex items-center mb-4">
                         {/* Background track */}
-                        <div className="absolute inset-x-0 h-[4px] rounded-full bg-[#EAEAEA]" />
+                        <div 
+                          className="absolute h-[4px] rounded-full bg-[#EAEAEA]" 
+                          style={{ left: `${THUMB_HALF}px`, right: `${THUMB_HALF}px` }} 
+                        />
                         {/* Active range track */}
                         <div
                           className="absolute h-[4px] rounded-full bg-[#F12B19]"
-                          style={{ left: `${minPct}%`, right: `${100 - maxPct}%` }}
+                          style={{ left: leftPos, right: rightPos }}
                         />
                         {/* Min thumb */}
                         <input
@@ -719,7 +672,7 @@ export default function HotelsPage() {
                             setMinPrice(val);
                           }}
                           className="absolute inset-x-0 w-full h-full appearance-none bg-transparent price-thumb"
-                          style={{ zIndex: minPrice > PRICE_MAX - 2000 ? 20 : 10 }}
+                          style={{ zIndex: minPrice > PRICE_MAX - 10000 ? 20 : 10 }}
                         />
                         {/* Max thumb */}
                         <input
@@ -1023,21 +976,51 @@ export default function HotelsPage() {
 
             {/* List of cards */}
             <div className="space-y-5">
-              {filteredHotels.map((hotel) => {
-                const isFavorite = favorites.includes(hotel.id)
-                return (
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-[#e53935] border-t-transparent mb-4"></div>
+                  <p className="text-[#6b6b6b] font-medium text-lg">Searching for best live hotel deals...</p>
+                </div>
+              ) : error ? (
+                <div className="flex flex-col items-center justify-center py-16 bg-red-50 rounded-[15px] border border-red-100">
+                  <p className="text-[#e53935] font-medium text-lg">{error}</p>
+                </div>
+              ) : filteredHotels.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-[15px] border border-[#e2e2e2]">
+                  <p className="text-[#6b6b6b] font-medium text-lg">No hotels found for your search.</p>
+                  <p className="text-[#949494] text-sm mt-2">Try adjusting your filters or search destination.</p>
+                </div>
+              ) : (
+                filteredHotels.map((hotel) => {
+                  const isFavorite = favorites.includes(hotel.id)
+                  return (
                   <div
                     key={hotel.id}
                     className="bg-white border border-[#e2e2e2] border-[0.8px] rounded-[15px] overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.02)] hover:shadow-[0_15px_35px_-8px_rgba(0,0,0,0.06)] flex flex-col md:flex-row h-auto md:h-[218px] transition-all duration-300 group hover:translate-y-[-1px] relative"
                   >
                     {/* Left: Image block */}
-                    <div className="w-full md:w-[406px] h-52 md:h-full relative overflow-hidden flex-shrink-0">
-                      <img
-                        src={hotel.image}
-                        alt={hotel.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
-                      />
-
+                    <div className="w-full md:w-[406px] h-52 md:h-full relative overflow-hidden flex-shrink-0 bg-[#f5f5f5]">
+                      {hotel.image ? (
+                        <>
+                          <img
+                            src={hotel.image}
+                            alt={hotel.name}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                            }}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                          />
+                          <div className="w-full h-full hidden flex-col items-center justify-center text-[#888] absolute inset-0">
+                            <span className="text-[14px] font-medium font-quicksand">Image Unavailable</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-[#888] absolute inset-0">
+                          <span className="text-[14px] font-medium font-quicksand">Image Unavailable</span>
+                        </div>
+                      )}
+                      
                       <div className="absolute bg-[#1a1a1a] h-[18.738px] left-[14.35px] rounded-full top-[15.71px] flex items-center justify-center px-[7.5px]" data-name="Badge">
                         <span className="font-['Quicksand'] font-bold text-[11.25px] text-white leading-none">
                           {hotel.badge}
@@ -1164,26 +1147,7 @@ export default function HotelsPage() {
                     </div>
                   </div>
                 )
-              })}
-
-              {/* No results placeholder */}
-              {filteredHotels.length === 0 && (
-                <div className="bg-white border border-[#D0D0D0] rounded-[15px] p-12 text-center shadow-sm flex flex-col items-center justify-center gap-4 animate-fadeIn">
-                  <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center text-[#FE2C1C] mb-2">
-                    <Compass size={32} className="animate-spin-slow" />
-                  </div>
-                  <h4 className="text-lg font-bold text-gray-900">No properties found</h4>
-                  <p className="text-sm text-gray-500 max-w-sm leading-relaxed">
-                    We couldn't find any hotels matching your current filter criteria. Try updating your max price or clearing some filters.
-                  </p>
-                  <button
-                    onClick={handleResetFilters}
-                    className="bg-[#FE2C1C] hover:bg-red-650 text-white rounded-xl px-5 py-2.5 text-xs font-bold transition-colors border-none cursor-pointer"
-                  >
-                    Clear All Filters
-                  </button>
-                </div>
-              )}
+              }))}
             </div>
           </section>
         </div>

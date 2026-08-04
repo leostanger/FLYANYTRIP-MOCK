@@ -53,6 +53,7 @@ export default function ResultPage() {
   // Loading & Live Flight list states
   const [loading, setLoading] = useState(false);
   const [liveFlights, setLiveFlights] = useState([]);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   // Reset all filters callback
   const handleResetFilters = () => {
@@ -182,6 +183,7 @@ export default function ResultPage() {
 
     const fetchLiveSearch = async () => {
       setLoading(true);
+      setErrorMsg(null);
       try {
         let response;
         let origin = "";
@@ -239,12 +241,15 @@ export default function ResultPage() {
                 const parts = s.split("T");
                 return parts[1] ? parts[1].substring(0, 5) : "";
               }
-              if (s.includes(" ") && (s.includes("AM") || s.includes("PM"))) {
-                return s;
+              const lowerS = s.toLowerCase();
+              if (s.includes(" ") && (lowerS.includes("am") || lowerS.includes("pm"))) {
+                const parts = s.split(" ");
+                // If the first part is a time like 10:30, return it
+                return parts[0] ? parts[0].substring(0, 5) + " " + (parts[1] || "").toUpperCase() : s;
               }
               if (s.includes(" ")) {
                 const parts = s.split(" ");
-                return parts[1] ? parts[1].substring(0, 5) : "";
+                return parts[0] ? parts[0].substring(0, 5) : "";
               }
               if (/^\d{2}:\d{2}/.test(s)) {
                 return s.substring(0, 5);
@@ -330,6 +335,7 @@ export default function ResultPage() {
         }
       } catch (err) {
         console.warn("Live API Search error:", err.message);
+        setErrorMsg('some error has occured');
         setLiveFlights([]);
         sessionStorage.removeItem('lastFlightSearchUrl');
       } finally {
@@ -496,6 +502,19 @@ export default function ResultPage() {
             <motion.div variants={containerVariants} className="space-y-4 pt-1">
               {loading ? (
                 <FlightSkeleton />
+              ) : errorMsg ? (
+                <div className="py-12 px-4 flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-gray-200 shadow-xs space-y-3 font-satoshi">
+                  <p className="text-red-500 font-bold text-base">{errorMsg}</p>
+                  <div className="flex gap-3 mt-4">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/?tab=flights', { state: { scrollToSearch: true } })}
+                      className="px-5 py-2 bg-[#F12B19] text-white rounded-xl text-xs font-bold hover:bg-red-700 transition-colors cursor-pointer"
+                    >
+                      Search Again
+                    </button>
+                  </div>
+                </div>
               ) : displayedFlights.length > 0 ? (
                 displayedFlights.map((flight) => (
                   <motion.div variants={itemVariants} key={flight.id}>
@@ -510,7 +529,7 @@ export default function ResultPage() {
                 ))
               ) : (
                 <div className="py-12 px-4 flex flex-col items-center justify-center text-center bg-white rounded-2xl border border-gray-200 shadow-xs space-y-3 font-satoshi">
-                  <p className="text-gray-800 font-bold text-base">No flights available from Adivaha API for this route & date.</p>
+                  <p className="text-gray-800 font-bold text-base">No flights are available for this route & date.</p>
                   <p className="text-gray-500 text-xs max-w-md">Please try modifying your origin/destination, selecting a different date, or clearing active filters.</p>
                   <div className="flex gap-3">
                     <button

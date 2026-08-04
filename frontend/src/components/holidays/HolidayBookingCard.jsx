@@ -165,8 +165,15 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
   // Hotel Search States
   const [hotelDest, setHotelDest] = useState('Goa, India')
   const [showDestDropdown, setShowDestDropdown] = useState(false)
-  const [checkInDate, setCheckInDate] = useState('2026-04-10')
-  const [checkOutDate, setCheckOutDate] = useState('2026-04-17')
+  const [checkInDate, setCheckInDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })
+  const [checkOutDate, setCheckOutDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })
   const [rooms, setRooms] = useState(1)
   const [guests, setGuests] = useState(2)
   const [showGuestsDropdown, setShowGuestsDropdown] = useState(false)
@@ -368,8 +375,8 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
             <div className="bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[16px] py-[8px] rounded-[10.134px] flex-1">
               <div className="flex flex-col gap-[4px] items-start leading-none">
                 <span className="font-sans font-normal text-[#666] text-[10.372px] uppercase">Departure</span>
-                <span className="font-semibold text-[#1a1a1a] text-[16px]">10/04/2026</span>
-                <span className="font-sans font-normal text-[#666] text-[8.08px]">Wednesday</span>
+                <span className="font-semibold text-[#1a1a1a] text-[16px]">{formatDate(checkInDate).date}</span>
+                <span className="font-sans font-normal text-[#666] text-[8.08px]">{formatDate(checkInDate).dayName}</span>
               </div>
               <div className="w-[32.47px] h-[32.47px] flex items-center justify-center">
                 <CalendarIcon className="w-5 h-5 text-gray-400" />
@@ -378,8 +385,8 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
             <div className="bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[16px] py-[8px] rounded-[10.134px] flex-1">
               <div className="flex flex-col gap-[4px] items-start leading-none">
                 <span className="font-sans font-normal text-[#666] text-[10.372px] uppercase">Return</span>
-                <span className="font-semibold text-[#1a1a1a] text-[16px]">17/04/2026</span>
-                <span className="font-sans font-normal text-[#666] text-[8.08px]">Wednesday</span>
+                <span className="font-semibold text-[#1a1a1a] text-[16px]">{formatDate(checkOutDate).date}</span>
+                <span className="font-sans font-normal text-[#666] text-[8.08px]">{formatDate(checkOutDate).dayName}</span>
               </div>
               <div className="w-[32.47px] h-[32.47px] flex items-center justify-center">
                 <CalendarIcon className="w-5 h-5 text-gray-400" />
@@ -456,8 +463,8 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
             <div className="bg-[rgba(255,255,255,0.75)] border-[#e8e8e8] border-[1.013px] border-solid flex items-center justify-between px-[16px] py-[8px] rounded-[10.134px] flex-1">
               <div className="flex flex-col gap-[4px] items-start leading-none">
                 <span className="font-sans font-normal text-[#666] text-[10.372px] uppercase">Departure Date</span>
-                <span className="font-semibold text-[#1a1a1a] text-[16px]">10/04/2026</span>
-                <span className="font-sans font-normal text-[#666] text-[8.08px]">Wednesday</span>
+                <span className="font-semibold text-[#1a1a1a] text-[16px]">{formatDate(checkInDate).date}</span>
+                <span className="font-sans font-normal text-[#666] text-[8.08px]">{formatDate(checkInDate).dayName}</span>
               </div>
               <div className="w-[32.47px] h-[32.47px] flex items-center justify-center">
                 <CalendarIcon className="w-5 h-5 text-gray-400" />

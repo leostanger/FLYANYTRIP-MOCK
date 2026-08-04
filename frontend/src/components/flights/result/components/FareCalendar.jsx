@@ -213,12 +213,7 @@ export default function FareCalendar({
             if (fareValue) {
               formattedPrice = `₹${Number(fareValue).toLocaleString("en-IN")}`;
             } else {
-              // Smart realistic estimated price calculation based on route and date delta
-              const knownFares = Object.values(calendarFares).filter(Boolean);
-              const baseFare = knownFares.length > 0 ? Math.min(...knownFares) : 3499;
-              const dayOffset = Math.abs(Math.round((dObj.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24)));
-              const estimatedFare = Math.ceil(baseFare + (dayOffset % 5) * 180 + (dayOffset % 3) * 240);
-              formattedPrice = `₹${estimatedFare.toLocaleString("en-IN")}`;
+              formattedPrice = "-";
             }
 
             return (
@@ -323,11 +318,7 @@ export default function FareCalendar({
                 const isPast = d < todayDate;
                 const fareValue = calendarFares[isoStr];
 
-                const knownFares = Object.values(calendarFares).filter(Boolean);
-                const baseFare = knownFares.length > 0 ? Math.min(...knownFares) : 3499;
-                const dayOffset = Math.abs(Math.round((d.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24)));
-                const estimatedFare = Math.ceil(baseFare + (dayOffset % 5) * 180 + (dayOffset % 3) * 240);
-                const displayPrice = fareValue ? `₹${Number(fareValue).toLocaleString("en-IN")}` : `₹${estimatedFare.toLocaleString("en-IN")}`;
+                const displayPrice = fareValue ? `₹${Number(fareValue).toLocaleString("en-IN")}` : `-`;
 
                 return (
                   <button
