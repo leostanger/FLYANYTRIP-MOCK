@@ -433,7 +433,13 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
       try {
         const yearVal = currentMonth.getFullYear()
         const monthVal = String(currentMonth.getMonth() + 1).padStart(2, '0')
-        const reqDate = `${yearVal}-${monthVal}-01`
+        
+        // GDS/Adivaha requires departureDate to be >= today.
+        // If currentMonth is the current month, use today's date; otherwise, use the 1st of the month.
+        const today = new Date()
+        const isCurrentMonth = currentMonth.getFullYear() === today.getFullYear() && currentMonth.getMonth() === today.getMonth()
+        const dayVal = isCurrentMonth ? String(today.getDate()).padStart(2, '0') : '01'
+        const reqDate = `${yearVal}-${monthVal}-${dayVal}`
 
         const res = await flightService.getCalendarFare({
           origin: origin || 'DEL',

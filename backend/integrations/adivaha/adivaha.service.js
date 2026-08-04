@@ -543,7 +543,7 @@ class AdivahaFlightService {
       } = bookingPayload;
 
       const apiPayload = {
-        action: isLCC ? "TicketForLcc" : "flightBook",
+        action: isLCC ? "ticketForLcc" : "flightBook",
         TraceId,
         ResultIndex,
         IsLCC: isLCC ? "1" : "0",
@@ -554,7 +554,7 @@ class AdivahaFlightService {
         ContactDetails
       };
 
-      const response = await adivahaClient.post('/', apiPayload);
+      const response = await adivahaClient.post(`/?action=${isLCC ? 'ticketForLcc' : 'flightBook'}`, apiPayload);
       console.log('ADIVAHA REQUEST PAYLOAD:', JSON.stringify(apiPayload, null, 2));
       console.log('ADIVAHA RESPONSE DATA:', JSON.stringify(response.data, null, 2));
       return response.data;
@@ -595,7 +595,7 @@ class AdivahaFlightService {
         Passengers
       };
 
-      const response = await adivahaClient.post('/', apiPayload);
+      const response = await adivahaClient.post('/?action=ticketForNonLcc', apiPayload);
       return response.data;
     } catch (error) {
       console.error('Adivaha ticketForNonLcc Error:', error.response?.data || error.message);

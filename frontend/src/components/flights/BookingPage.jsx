@@ -10,6 +10,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { CheckCircle2, Home, Loader2, Plane } from "lucide-react";
 import DownloadInvoiceButton from "../../common/DownloadInvoiceButton";
 import { saveBooking } from "../../common/useBookings";
+import { fetchAPI } from "../../services/api";
 
 // Global layout wrappers
 import Header from "../../common/Header";
@@ -44,13 +45,65 @@ export default function BookingPage() {
     save: "Save ₹500",
     flexi: "Flexi ₹3,399",
     business: "Business ₹7,797",
-    badge: "Cheapest"
+    badge: "Cheapest",
+    isLCC: true
   };
 
-  // Retrieve parameters passed from the flight list page
-  const flight = location.state?.flight || defaultFlight;
-  const fare = location.state?.fare || { title: "Anytrip Special", price: 3499 };
-  const searchContext = location.state?.searchContext || {};
+  // Retrieve parameters passed from the flight list page with sessionStorage caching fallback
+  const getInitialFlight = () => {
+    const stateFlight = location.state?.flight;
+    if (stateFlight) {
+      sessionStorage.setItem("selectedFlight", JSON.stringify(stateFlight));
+      return stateFlight;
+    }
+    const cachedFlight = sessionStorage.getItem("selectedFlight");
+    if (cachedFlight) {
+      try {
+        return JSON.parse(cachedFlight);
+      } catch (e) {
+        console.warn("Failed to parse cached flight:", e);
+      }
+    }
+    return defaultFlight;
+  };
+
+  const getInitialFare = () => {
+    const stateFare = location.state?.fare;
+    if (stateFare) {
+      sessionStorage.setItem("selectedFare", JSON.stringify(stateFare));
+      return stateFare;
+    }
+    const cachedFare = sessionStorage.getItem("selectedFare");
+    if (cachedFare) {
+      try {
+        return JSON.parse(cachedFare);
+      } catch (e) {
+        console.warn("Failed to parse cached fare:", e);
+      }
+    }
+    return { title: "Anytrip Special", price: 3499 };
+  };
+
+  const getInitialSearchContext = () => {
+    const stateContext = location.state?.searchContext;
+    if (stateContext) {
+      sessionStorage.setItem("searchContext", JSON.stringify(stateContext));
+      return stateContext;
+    }
+    const cachedContext = sessionStorage.getItem("searchContext");
+    if (cachedContext) {
+      try {
+        return JSON.parse(cachedContext);
+      } catch (e) {
+        console.warn("Failed to parse cached searchContext:", e);
+      }
+    }
+    return {};
+  };
+
+  const flight = getInitialFlight();
+  const fare = getInitialFare();
+  const searchContext = getInitialSearchContext();
   const searchAdults = Math.max(1, parseInt(searchContext.adults || 1, 10));
   const searchChildren = Math.max(0, parseInt(searchContext.children || 0, 10));
   const cabinClass = searchContext.cabinClass || "Economy";
@@ -167,13 +220,13 @@ export default function BookingPage() {
     setIsConfirming(true);
 
     try {
-      // 1. Sync to backend first and wait for response
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
-      const response = await fetch(`${baseUrl}/booking/confirm`, {
+      // 1. Sync to backend first and wait for response using unified fetchAPI helper
+      console.log("Sending confirmation via fetchAPI to /booking/confirm...");
+      
+      const resJson = await fetchAPI("/booking/confirm", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          traceId: flight?.traceId || flight?.raw?.traceId || "trace_live_01",
+          traceId: flight?.traceId || flight?.raw?.traceId || "mock_trace_default",
           resultIndex: flight?.resultIndex || flight?.raw?.resultIndex || "1",
           isLCC: flight?.isLCC !== undefined ? flight?.isLCC : (flight?.raw?.isLCC !== undefined ? flight?.raw?.isLCC : (flight?.raw?.IsLCC !== undefined ? flight?.raw?.IsLCC : false)),
           passengers: passengers.map((p, idx) => {
@@ -220,7 +273,7 @@ export default function BookingPage() {
         })
       });
 
-      const resJson = await response.json();
+      console.log("Confirmation Response:", resJson);
 
       if (resJson.success && resJson.data) {
         const backendBooking = resJson.data.booking;
@@ -276,7 +329,14 @@ export default function BookingPage() {
       }
     } catch (err) {
       console.error("Payment confirmation error:", err);
-      alert("Error confirming booking: " + err.message);
+      let extraInfo = "";
+      if (err.message.includes("fetch") || err.message.includes("API Error")) {
+        extraInfo = "\n\nTroubleshooting tips:\n" +
+          "1. Ensure the backend server is running in the terminal on port 5000.\n" +
+          "2. If the frontend is loaded over HTTPS (e.g. on Vercel), the browser will block requests to HTTP localhost. Run the frontend locally on http://localhost:5173 for testing.\n" +
+          "3. Restart the frontend Vite dev server (Ctrl+C and npm run dev) so it picks up the latest environment configuration.";
+      }
+      alert("Error confirming booking: " + err.message + extraInfo);
     } finally {
       setIsConfirming(false);
     }

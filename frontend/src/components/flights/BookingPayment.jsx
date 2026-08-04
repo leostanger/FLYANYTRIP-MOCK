@@ -110,12 +110,29 @@ export default function BookingPayment({ flight, selectedFare, passengers = [], 
 
       try {
         const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+        console.log("Base URL (Payment):", baseUrl);
+        console.log("Final URL (Payment):", `${baseUrl}/payment/create-order`);
+
         const res = await fetch(`${baseUrl}/payment/create-order`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ amount: finalPayAmount })
         });
-        const data = await res.json();
+
+        console.log("Response Status (Payment):", res.status);
+        console.log("Response OK (Payment):", res.ok);
+
+        const text = await res.text();
+        console.log("Raw Response Text (Payment):", text);
+
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (jsonErr) {
+          console.error("Failed to parse JSON response for payment order:", jsonErr);
+          data = { success: false };
+        }
+
         if (data?.success && data?.data?.orderId) {
           orderId = data.data.orderId;
           orderAmount = data.data.amount;

@@ -377,7 +377,10 @@ const getCalendarFare = async (req, res, next) => {
         fares = findSearchResults(respData) || [];
       }
     }
-    
+    if (!fares || fares.length === 0) {
+      console.log('No calendar fares returned from Adivaha.');
+      fares = [];
+    }
     apiCache.set(cacheKey, fares);
 
     return res.status(200).json({

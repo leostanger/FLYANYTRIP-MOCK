@@ -1,0 +1,10 @@
+{
+  "ignore": [
+    "adivaha_debug.json",
+    "raw_response.json",
+    "fare.json",
+    "error_log.txt",
+    "server.log",
+    "*.log"
+  ]
+}
