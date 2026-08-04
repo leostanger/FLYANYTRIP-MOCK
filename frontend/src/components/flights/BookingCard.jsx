@@ -515,7 +515,7 @@ function CustomDatePicker({ selectedDate, onChange, onClose, minDate, title = "S
     if (faresMap[dateStr]) {
       const p = Number(String(faresMap[dateStr]).replace(/[^\d.]/g, ''))
       if (!isNaN(p) && p > 0) {
-        return `₹${p >= 1000 ? (p / 1000).toFixed(1) + 'k' : p}`
+        return `₹${Math.round(p)}`
       }
     }
     return null

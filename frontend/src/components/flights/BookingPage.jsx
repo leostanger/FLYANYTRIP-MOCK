@@ -220,14 +220,25 @@ export default function BookingPage() {
     setIsConfirming(true);
 
     try {
-      // 1. Sync to backend first and wait for response using unified fetchAPI helper
+      // 1. Guard: Ensure real traceId and resultIndex exist before proceeding
+      const realTraceId = flight?.traceId || flight?.raw?.traceId;
+      const realResultIndex = flight?.resultIndex || flight?.raw?.resultIndex;
+
+      if (!realTraceId || String(realTraceId).startsWith('mock_trace_')) {
+        throw new Error('Invalid booking session: TraceId is missing or expired. Please search for flights again.');
+      }
+      if (!realResultIndex) {
+        throw new Error('Invalid booking session: ResultIndex is missing. Please search for flights again.');
+      }
+
+      // 2. Sync to backend first and wait for response using unified fetchAPI helper
       console.log("Sending confirmation via fetchAPI to /booking/confirm...");
       
       const resJson = await fetchAPI("/booking/confirm", {
         method: "POST",
         body: JSON.stringify({
-          traceId: flight?.traceId || flight?.raw?.traceId || "mock_trace_default",
-          resultIndex: flight?.resultIndex || flight?.raw?.resultIndex || "1",
+          traceId: realTraceId,
+          resultIndex: realResultIndex,
           isLCC: flight?.isLCC !== undefined ? flight?.isLCC : (flight?.raw?.isLCC !== undefined ? flight?.raw?.isLCC : (flight?.raw?.IsLCC !== undefined ? flight?.raw?.IsLCC : false)),
           passengers: passengers.map((p, idx) => {
             const pSeat = addonsData.paxSeatsMap?.[idx]?.seat || (idx === 0 ? selectedSeat : null);
@@ -235,9 +246,9 @@ export default function BookingPage() {
             const cleanTitle = rawTitle.replace(/\./g, ""); // Strip any dot
             return {
               Title: cleanTitle,
-              FirstName: p.firstName || "Rahul",
-              LastName: p.lastName || "Sharma",
-              DateOfBirth: p.dob || "1990-08-15",
+              FirstName: p.firstName,
+              LastName: p.lastName,
+              DateOfBirth: p.dob || "1990-01-01",
               Seat: pSeat ? { Code: pSeat } : undefined
             };
           }),
@@ -325,18 +336,25 @@ export default function BookingPage() {
         setBookingData(finalBooking);
         goToStep(5);
       } else {
-        alert("Booking confirmation failed: " + (resJson.message || "Unknown error"));
+        // Check if session expired (7606)
+        if (resJson.sessionExpired) {
+          alert("⏰ Session Expired\n\n" + (resJson.message || "Your booking session has expired. Please search again.") + "\n\nYou will be taken back to the search page.");
+          navigate("/flights");
+        } else {
+          alert("Booking failed: " + (resJson.message || resJson.error?.ErrorMessage || "Unknown error. Please try again."));
+        }
       }
     } catch (err) {
       console.error("Payment confirmation error:", err);
-      let extraInfo = "";
-      if (err.message.includes("fetch") || err.message.includes("API Error")) {
-        extraInfo = "\n\nTroubleshooting tips:\n" +
-          "1. Ensure the backend server is running in the terminal on port 5000.\n" +
-          "2. If the frontend is loaded over HTTPS (e.g. on Vercel), the browser will block requests to HTTP localhost. Run the frontend locally on http://localhost:5173 for testing.\n" +
-          "3. Restart the frontend Vite dev server (Ctrl+C and npm run dev) so it picks up the latest environment configuration.";
+      // Session / TraceId expired errors
+      if (err.message?.toLowerCase().includes("session") || err.message?.toLowerCase().includes("traceid") || err.message?.toLowerCase().includes("expired")) {
+        alert("⏰ Session Expired\n\nYour booking session has expired. Please search for flights again and complete the booking within 15 minutes.\n\nYou will be taken back to the search page.");
+        navigate("/flights");
+      } else if (err.message?.includes("fetch") || err.message?.includes("API Error")) {
+        alert("Connection error. Please ensure the server is running and try again.");
+      } else {
+        alert("Error confirming booking: " + err.message);
       }
-      alert("Error confirming booking: " + err.message + extraInfo);
     } finally {
       setIsConfirming(false);
     }
@@ -344,7 +362,7 @@ export default function BookingPage() {
 
   // If step 5, render confirmation full-page (same as HotelConfirmationPage)
   if (step === 5) {
-    const currentData = bookingData || { pnr: "VG2434", flight, passengers };
+    const currentData = bookingData || { flight, passengers };
     return (
       <div className="min-h-screen flex flex-col font-sans">
         <Header />

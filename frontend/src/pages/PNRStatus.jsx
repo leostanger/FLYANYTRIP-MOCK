@@ -19,35 +19,12 @@ export default function PNRStatus() {
     setLoading(true);
     setFlightStatus(null);
 
-    // Mock search delay
+    // Live PNR status requires airline-specific SOAP/REST API integration
+    // (not part of Adivaha GDS). Directing users to airline website or MyBookings.
     setTimeout(() => {
       setLoading(false);
-      const cleanPnr = pnrInput.trim().toUpperCase();
-
-      if (cleanPnr.length < 4) {
-        setError('❌ PNR not found. Standard GDS references are 5 or 6 characters (alphanumeric).');
-      } else {
-        setFlightStatus({
-          pnr: cleanPnr,
-          flightNumber: 'AI-805',
-          airline: 'Air India',
-          status: 'ON TIME',
-          statusCode: 'ontime',
-          from: 'Delhi (DEL)',
-          to: 'Bengaluru (BLR)',
-          fromTerminal: 'T3, Indira Gandhi Intl',
-          toTerminal: 'T2, Kempegowda Intl',
-          departureTime: '10:15 AM',
-          arrivalTime: '12:55 PM',
-          date: '02 Aug 2026',
-          passenger: 'John Doe',
-          seat: '12A',
-          gate: '24B',
-          baggageBelt: 'Belt 4',
-          duration: '2h 40m'
-        });
-      }
-    }, 1100);
+      setError('Live PNR tracking is not yet connected for this route. Please check your flight status directly on the airline\'s website or visit the My Bookings section for your confirmed booking details.');
+    }, 800);
   };
 
   return (
