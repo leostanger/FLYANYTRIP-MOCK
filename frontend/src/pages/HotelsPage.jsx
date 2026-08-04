@@ -11,11 +11,7 @@ import HotelPersonalize from '../components/hotels/HotelPersonalize'
 import HotelPaymentStep from '../components/hotels/HotelPaymentStep'
 import HotelPaymentOptions from '../components/hotels/HotelPaymentOptions'
 import HotelConfirmationPage from '../components/hotels/HotelConfirmationPage'
-import hotelImage1 from '../assets/hotels/City View from Room.jpg'
-import hotelImage2 from '../assets/Hotel section/extracted_images/Hotel The Royal Krishna.jpg'
-import hotelImage3 from '../assets/hotels/Hotel-Inspired Guest Space With White Bedding And Golden Touch.jpg'
-import hotelImage4 from '../assets/hotels/India - Nahargarh Fort, in the Indian state of Rajasthan, stands on the edge of the Aravalli Hills and offers great views over the city of Jaipur_.jpg'
-import hotelImage5 from '../assets/Hotel section/Udaipur’s Royal Legacy & Spirituality_ A Journey Through Time.jpg'
+
 import {
   MapPin,
   Calendar,
