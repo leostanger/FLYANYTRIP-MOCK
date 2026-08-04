@@ -42,12 +42,14 @@ export default function BookingPersonalize({ flight, passengers = [], onContinue
   const [isLiveSsr, setIsLiveSsr] = useState(false);
 
   useEffect(() => {
-    if (flight?.traceId && flight?.resultIndex) {
+    const tId = flight?.traceId || flight?.raw?.traceId;
+    const rIdx = flight?.resultIndex || flight?.raw?.resultIndex || flight?.id;
+    if (tId && rIdx) {
       const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
       fetch(`${baseUrl}/flights/ssr`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ traceId: flight.traceId, resultIndex: flight.resultIndex })
+        body: JSON.stringify({ traceId: tId, resultIndex: rIdx })
       })
         .then(r => r.json())
         .then(data => {

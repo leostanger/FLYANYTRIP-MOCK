@@ -72,6 +72,8 @@ exports.confirmBooking = async (req, res, next) => {
             userId // optional
         } = req.body;
 
+        const isLccNormalized = isLCC === true || isLCC === 'true' || isLCC === 1 || isLCC === '1';
+
         const normalizedContactDetails = {
             Email: contactDetails?.Email || contactDetails?.email || "guest@flyanytrip.com",
             ContactNo: contactDetails?.ContactNo || contactDetails?.contactNo || contactDetails?.mobile || contactDetails?.phone || "9999999999",
@@ -186,7 +188,7 @@ exports.confirmBooking = async (req, res, next) => {
                 passportExpiryStr = parsedExpiry.includes("T") ? parsedExpiry.split("T")[0] + "T00:00:00" : parsedExpiry + "T00:00:00";
             }
 
-            return {
+            const passengerObj = {
                 Title: title,
                 FirstName: p.FirstName || "Rahul",
                 LastName: p.LastName || "Sharma",
@@ -201,11 +203,19 @@ exports.confirmBooking = async (req, res, next) => {
                 Nationality: nationality.toUpperCase(),
                 ContactNo: contactNo,
                 Email: email,
-                IsLeadPax: isLeadPax,
-                PassportNo: isDomestic === "No" ? (p.PassportNo || "P1234567") : null,
-                PassportExpiry: passportExpiryStr,
-                Seat: p.Seat
+                IsLeadPax: isLeadPax
             };
+
+            if (isDomestic === "No") {
+                passengerObj.PassportNo = p.PassportNo || "P1234567";
+                passengerObj.PassportExpiry = passportExpiryStr;
+            }
+
+            if (p.Seat && p.Seat.Code && p.Seat.Code !== "Auto-assigned") {
+                passengerObj.Seat = p.Seat;
+            }
+
+            return passengerObj;
         });
 
         // 1. Call Adivaha API to book/hold the ticket
@@ -218,13 +228,13 @@ exports.confirmBooking = async (req, res, next) => {
                     Error: { ErrorCode: 0 },
                     PNR: `PNRMOCK${Math.floor(Math.random() * 900000 + 100000)}`,
                     BookingId: Math.floor(Math.random() * 900000 + 100000),
-                    TicketStatus: isLCC ? 'TICKETED' : 'BOOKED'
+                    TicketStatus: isLccNormalized ? 'TICKETED' : 'BOOKED'
                 }
             };
         } else {
             try {
-                adivahaRes = await AdivahaFlightService.bookFlight({
-                    isLCC,
+                const adivahaPayload = {
+                    isLCC: isLccNormalized,
                     TraceId: traceId,
                     ResultIndex: resultIndex,
                     Passengers: enrichedPassengers,
@@ -232,39 +242,73 @@ exports.confirmBooking = async (req, res, next) => {
                     isoneway,
                     isDomestic,
                     IsDomesticReturn
-                });
-            } catch (adivahaError) {
-                console.warn('Adivaha booking failed. Falling back to mock booking for testing...', adivahaError.message);
-                adivahaRes = {
-                    Response: {
-                        Error: { ErrorCode: 0 },
-                        PNR: `PNRFAIL${Math.floor(Math.random() * 900000 + 100000)}`,
-                        BookingId: Math.floor(Math.random() * 900000 + 100000),
-                        TicketStatus: isLCC ? 'TICKETED' : 'BOOKED'
-                    }
                 };
+
+                const fs = require('fs');
+                const path = require('path');
+                try {
+                    fs.writeFileSync(path.join(__dirname, '../adivaha_debug.json'), JSON.stringify({
+                        timestamp: new Date().toISOString(),
+                        type: 'booking_request',
+                        payload: adivahaPayload
+                    }, null, 2));
+                } catch (writeErr) {
+                    console.warn('Debug request write failed:', writeErr.message);
+                }
+
+                adivahaRes = await AdivahaFlightService.bookFlight(adivahaPayload);
+
+                try {
+                    fs.writeFileSync(path.join(__dirname, '../adivaha_debug.json'), JSON.stringify({
+                        timestamp: new Date().toISOString(),
+                        type: 'booking_response',
+                        payload: adivahaPayload,
+                        response: adivahaRes
+                    }, null, 2));
+                } catch (writeErr) {
+                    console.warn('Debug response write failed:', writeErr.message);
+                }
+            } catch (adivahaError) {
+                console.error('Adivaha booking request error:', adivahaError);
+                return res.status(400).json({
+                    success: false,
+                    message: 'Adivaha Booking Request Failed',
+                    error: adivahaError.message || adivahaError
+                });
             }
         }
 
         // Extract PNR and Booking ID from Adivaha Response
         let responseData = adivahaRes?.responseData?.Response || adivahaRes?.Response || adivahaRes;
         
-        // If the booking fails from Adivaha side
-        if (responseData?.Error?.ErrorCode !== 0 && responseData?.Error?.ErrorCode !== undefined) {
+        // Check if Adivaha API returned an explicit failure status
+        const isFailedStatus = 
+            adivahaRes?.status_type?.toLowerCase() === 'failed' || 
+            adivahaRes?.status?.toLowerCase() === 'failed' || 
+            (adivahaRes?.status !== undefined && adivahaRes?.status !== "200" && adivahaRes?.status !== 200) ||
+            (!responseData?.PNR && !responseData?.BookingId && !responseData?.OrderId);
+
+        const errorMessage = adivahaRes?.status_message || responseData?.Error?.ErrorMessage || 'Unknown Adivaha Error';
+
+        if (isFailedStatus || (responseData?.Error?.ErrorCode !== 0 && responseData?.Error?.ErrorCode !== undefined)) {
+            console.error('Adivaha Booking Failed:', adivahaRes);
             return res.status(400).json({ 
                 success: false, 
                 message: 'Adivaha Booking Failed', 
-                error: responseData.Error 
+                error: {
+                    ErrorCode: responseData?.Error?.ErrorCode || adivahaRes?.Status || 500,
+                    ErrorMessage: errorMessage
+                } 
             });
         }
 
         let pnr = responseData?.PNR || (responseData?.BookingId ? String(responseData.BookingId) : null);
         let providerBookingId = responseData?.BookingId || null;
-        let ticketStatus = responseData?.TicketStatus || (isLCC ? 'TICKETED' : 'BOOKED');
+        let ticketStatus = responseData?.TicketStatus || (isLccNormalized ? 'TICKETED' : 'BOOKED');
         let ticketingRes = null;
 
         // 1.5. For Non-LCC flights, trigger step 2: Ticketing (issueNonLccTicket)
-        if (!isLCC && providerBookingId && pnr) {
+        if (!isLccNormalized && providerBookingId && pnr) {
             if (isMockTrace) {
                 ticketStatus = 'TICKETED';
             } else {
@@ -282,9 +326,15 @@ exports.confirmBooking = async (req, res, next) => {
 
                     const ticketResData = ticketingRes?.responseData?.Response || ticketingRes?.Response || ticketingRes;
 
-                    if (ticketResData?.Error?.ErrorCode !== 0 && ticketResData?.Error?.ErrorCode !== undefined) {
-                        console.error('Adivaha Non-LCC Ticketing Failed:', ticketResData.Error);
-                        ticketStatus = 'TICKETED';
+                    const isTicketFailed = 
+                        ticketingRes?.status_type?.toLowerCase() === 'failed' || 
+                        ticketingRes?.status?.toLowerCase() === 'failed' || 
+                        (ticketingRes?.status !== undefined && ticketingRes?.status !== "200" && ticketingRes?.status !== 200) ||
+                        (ticketResData?.Error?.ErrorCode !== 0 && ticketResData?.Error?.ErrorCode !== undefined);
+
+                    if (isTicketFailed) {
+                        console.error('Adivaha Non-LCC Ticketing Failed:', ticketingRes);
+                        ticketStatus = 'HOLD_TICKET_FAILED';
                     } else {
                         if (ticketResData?.PNR) pnr = ticketResData.PNR;
                         if (ticketResData?.BookingId) providerBookingId = ticketResData.BookingId;
@@ -292,7 +342,7 @@ exports.confirmBooking = async (req, res, next) => {
                     }
                 } catch (ticketingError) {
                     console.error('Adivaha Non-LCC Ticketing request error:', ticketingError);
-                    ticketStatus = 'TICKETED';
+                    ticketStatus = 'HOLD_TICKET_FAILED';
                 }
             }
         }
@@ -355,7 +405,7 @@ exports.confirmBooking = async (req, res, next) => {
                         currency: 'INR',
                         ticket_status: ticketStatus,
                         booking_status: 'CONFIRMED',
-                        is_lcc: isLCC || false,
+                        is_lcc: isLccNormalized || false,
                         total_passengers: enrichedPassengers?.length || 1,
                         distance_km: 0,
                         raw_response: {

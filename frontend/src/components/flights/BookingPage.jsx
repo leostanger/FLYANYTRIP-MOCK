@@ -173,12 +173,15 @@ export default function BookingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          traceId: flight?.traceId || "trace_live_01",
-          resultIndex: flight?.resultIndex || "1",
+          traceId: flight?.traceId || flight?.raw?.traceId || "trace_live_01",
+          resultIndex: flight?.resultIndex || flight?.raw?.resultIndex || "1",
+          isLCC: flight?.isLCC !== undefined ? flight?.isLCC : (flight?.raw?.isLCC !== undefined ? flight?.raw?.isLCC : (flight?.raw?.IsLCC !== undefined ? flight?.raw?.IsLCC : false)),
           passengers: passengers.map((p, idx) => {
             const pSeat = addonsData.paxSeatsMap?.[idx]?.seat || (idx === 0 ? selectedSeat : null);
+            const rawTitle = p.title || "Mr";
+            const cleanTitle = rawTitle.replace(/\./g, ""); // Strip any dot
             return {
-              Title: p.title || "Mr.",
+              Title: cleanTitle,
               FirstName: p.firstName || "Rahul",
               LastName: p.lastName || "Sharma",
               DateOfBirth: p.dob || "1990-08-15",

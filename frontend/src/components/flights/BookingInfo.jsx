@@ -10,14 +10,81 @@
 import React, { useState } from "react";
 import { Mail, Phone, User, Calendar, Plus, ChevronDown, Check, AlertCircle } from "lucide-react";
 
+// Cookie helper functions
+const setCookie = (name, value, days = 30) => {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(JSON.stringify(value))}; expires=${expires}; path=/`;
+};
+
+const getCookie = (name) => {
+  try {
+    const val = document.cookie.split('; ').reduce((r, v) => {
+      const parts = v.split('=');
+      return parts[0] === name ? decodeURIComponent(parts[1]) : r;
+    }, '');
+    return val ? JSON.parse(val) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
 export default function BookingInfo({ onContinue, initialContact, initialPassengers }) {
-  const [mobile, setMobile] = useState(initialContact?.mobile || "");
-  const [email, setEmail] = useState(initialContact?.email || "");
-  const [passengers, setPassengers] = useState(
-    initialPassengers && initialPassengers.length > 0
+  const [mobile, setMobile] = useState(() => {
+    if (initialContact?.mobile) return initialContact.mobile;
+    const cookieData = getCookie("saved_contact_info");
+    if (cookieData?.mobile) return cookieData.mobile;
+    try {
+      const saved = JSON.parse(localStorage.getItem("saved_contact_info") || "{}");
+      return saved.mobile || "";
+    } catch {
+      return "";
+    }
+  });
+
+  const [email, setEmail] = useState(() => {
+    if (initialContact?.email) return initialContact.email;
+    const cookieData = getCookie("saved_contact_info");
+    if (cookieData?.email) return cookieData.email;
+    try {
+      const saved = JSON.parse(localStorage.getItem("saved_contact_info") || "{}");
+      return saved.email || "";
+    } catch {
+      return "";
+    }
+  });
+
+  const [passengers, setPassengers] = useState(() => {
+    if (initialPassengers && initialPassengers.length > 0 && initialPassengers.some(p => p.firstName || p.lastName)) {
+      return initialPassengers;
+    }
+    const saved = getCookie("saved_passenger_info") || (() => {
+      try {
+        return JSON.parse(localStorage.getItem("saved_passenger_info") || "[]");
+      } catch {
+        return [];
+      }
+    })();
+
+    if (Array.isArray(saved) && saved.length > 0 && initialPassengers && initialPassengers.length > 0) {
+      return initialPassengers.map((pax, idx) => {
+        if (saved[idx]) {
+          return {
+            ...pax,
+            title: saved[idx].title || pax.title,
+            firstName: saved[idx].firstName || pax.firstName,
+            lastName: saved[idx].lastName || pax.lastName,
+            dob: saved[idx].dob || pax.dob,
+            nationality: saved[idx].nationality || pax.nationality
+          };
+        }
+        return pax;
+      });
+    }
+
+    return initialPassengers && initialPassengers.length > 0
       ? initialPassengers
-      : [{ id: 1, title: "Mr.", firstName: "", lastName: "", dob: "", nationality: "Indian" }]
-  );
+      : [{ id: 1, title: "Mr.", firstName: "", lastName: "", dob: "", nationality: "Indian" }];
+  });
 
   const [errors, setErrors] = useState({});
 
@@ -159,6 +226,17 @@ export default function BookingInfo({ onContinue, initialContact, initialPasseng
     if (!validateForm()) {
       return;
     }
+    
+    // Save details to cookie & localStorage
+    setCookie("saved_contact_info", { mobile, email });
+    setCookie("saved_passenger_info", passengers);
+    try {
+      localStorage.setItem("saved_contact_info", JSON.stringify({ mobile, email }));
+      localStorage.setItem("saved_passenger_info", JSON.stringify(passengers));
+    } catch (err) {
+      console.warn("Storage write blocked:", err);
+    }
+
     if (onContinue) {
       onContinue({
         contactInfo: { mobile, email },

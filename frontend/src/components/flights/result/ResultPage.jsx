@@ -220,6 +220,7 @@ export default function ResultPage() {
         }
 
         let rawList = [];
+        const responseTraceId = response?.traceId || response?.data?.traceId || null;
         if (Array.isArray(response?.data?.flights)) rawList = response.data.flights;
         else if (Array.isArray(response?.data)) rawList = response.data;
         else if (Array.isArray(response?.flights)) rawList = response.flights;
@@ -293,6 +294,9 @@ export default function ResultPage() {
 
             return {
               id: f.id || f.ResultIndex || f.resultIndex || `fl-${idx}`,
+              traceId: f.traceId || responseTraceId,
+              resultIndex: f.resultIndex || f.ResultIndex,
+              isLCC: f.isLCC !== undefined ? f.isLCC : (f.IsLCC !== undefined ? Boolean(f.IsLCC) : false),
               logo: f.logo || `https://images.kiwi.com/airlines/64/${airlineCode}.png`,
               airline: f.airline || f.AirlineName || f.airlineName || "Airline",
               code: f.flight || `${airlineCode}-${f.FlightNumber || f.flightNumber || 100 + idx}`,

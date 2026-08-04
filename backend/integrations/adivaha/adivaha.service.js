@@ -250,6 +250,7 @@ class AdivahaFlightService {
             price: Math.ceil(f.Fare?.OfferedFare || f.Fare?.PublishedFare || 0).toLocaleString('en-IN'),
             publishedPrice: Math.ceil(f.Fare?.PublishedFare || 0).toLocaleString('en-IN'),
             class: firstSegment.FareClassification?.Type || searchPayload.cabinClass || 'Economy',
+            isLCC: f.IsLCC !== undefined ? Boolean(f.IsLCC) : false,
             raw: f // keep original for debug
           };
         }).filter(Boolean);
@@ -398,6 +399,7 @@ class AdivahaFlightService {
             price: Math.ceil(f.Fare?.OfferedFare || f.Fare?.PublishedFare || 0).toLocaleString('en-IN'),
             publishedPrice: Math.ceil(f.Fare?.PublishedFare || 0).toLocaleString('en-IN'),
             class: firstSeg.FareClassification?.Type || 'Economy',
+            isLCC: f.IsLCC !== undefined ? Boolean(f.IsLCC) : false,
             raw: f
           };
         }).filter(Boolean);
@@ -541,7 +543,7 @@ class AdivahaFlightService {
       } = bookingPayload;
 
       const apiPayload = {
-        action: isLCC ? "ticketForLcc" : "flightBook",
+        action: isLCC ? "TicketForLcc" : "flightBook",
         TraceId,
         ResultIndex,
         IsLCC: isLCC ? "1" : "0",
@@ -553,6 +555,8 @@ class AdivahaFlightService {
       };
 
       const response = await adivahaClient.post('/', apiPayload);
+      console.log('ADIVAHA REQUEST PAYLOAD:', JSON.stringify(apiPayload, null, 2));
+      console.log('ADIVAHA RESPONSE DATA:', JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
       console.error(`Adivaha ${bookingPayload.isLCC ? 'ticketForLcc' : 'flightBook'} Error:`, error.response?.data || error.message);
