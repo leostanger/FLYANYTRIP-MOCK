@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Utensils, Luggage, Check, User, ChevronDown, ChevronUp
+  Utensils, Luggage, Zap, Wifi, ShieldCheck, Check, User, ChevronDown, ChevronUp
 } from "lucide-react";
 
 /* --- Default Fallback Meals --- */
@@ -20,10 +20,12 @@ const DEFAULT_MEALS = [
   { id: "none",   label: "No Meal",   desc: "Skip in-flight meal",         price: 0,   emoji: "✕",  tag: "Free",        tagColor: "bg-gray-100 text-gray-500",     borderSelected: "border-gray-400"    }
 ];
 
-/* --- Default Fallback Addons (Baggage only — API-backed items) --- */
+/* --- Default Fallback Addons --- */
 const DEFAULT_ADDONS = [
-  { id: "bag_15",   label: "Extra Baggage — 15 kg", price: 799,  desc: "Add 1 check-in bag (15 kg)",  badge: null          },
-  { id: "bag_30",   label: "Extra Baggage — 30 kg", price: 1399, desc: "Add 2 check-in bags (30 kg)", badge: "Best Value" }
+  { id: "bag_15",   label: "Extra Baggage — 15 kg", price: 799,  desc: "Add 1 check-in bag (15 kg)",            badge: null         },
+  { id: "bag_30",   label: "Extra Baggage — 30 kg", price: 1399, desc: "Add 2 check-in bags (30 kg)",           badge: "Best Value" },
+  { id: "priority", label: "Priority Boarding",     price: 299,  desc: "Board first, best overhead bin space",  badge: "Popular"    },
+  { id: "wifi",     label: "In-flight Wi-Fi",       price: 499,  desc: "Stay connected during the flight",      badge: null         }
 ];
 
 export default function BookingPersonalize({ flight, passengers = [], onContinue, onAddonsUpdate }) {
@@ -60,35 +62,11 @@ export default function BookingPersonalize({ flight, passengers = [], onContinue
             const apiMeals = Array.isArray(ssrRes.MealDynamic[0]) ? ssrRes.MealDynamic[0] : ssrRes.MealDynamic;
             if (apiMeals.length > 0) {
               hasLive = true;
-
-              const getMealEmoji = (name = "") => {
-                const n = name.toLowerCase();
-                if (n.includes("no meal") || n.includes("nomeal") || n.includes("no food")) return "✕";
-                if (n.includes("chicken tikka") || n.includes("chicken sandwich")) return "🥪";
-                if (n.includes("chicken")) return "🍗";
-                if (n.includes("biryani")) return "🍛";
-                if (n.includes("paneer")) return "🧀";
-                if (n.includes("jain")) return "🙏";
-                if (n.includes("vegan")) return "🌱";
-                if (n.includes("veg") && (n.includes("meal") || n.includes("combo"))) return "🥗";
-                if (n.includes("upma") || n.includes("idli") || n.includes("poha") || n.includes("dosa")) return "🫓";
-                if (n.includes("sandwich") || n.includes("wrap") || n.includes("burger")) return "🥪";
-                if (n.includes("pasta") || n.includes("noodle")) return "🍝";
-                if (n.includes("soup")) return "🍜";
-                if (n.includes("fruit") || n.includes("salad")) return "🥗";
-                if (n.includes("snack") || n.includes("combo") || n.includes("corporate")) return "🍱";
-                if (n.includes("rava") || n.includes("breakfast")) return "🫓";
-                if (n.includes("mutton") || n.includes("fish") || n.includes("sea")) return "🐟";
-                return "🍽️"; // generic fallback
-              };
-
               const mapped = apiMeals.map((m, i) => ({
                 id: m.Code || `meal_${i}`, label: m.AirlineDescription || m.Code || `Option ${i + 1}`,
                 desc: m.Origin && m.Destination ? `${m.Origin} → ${m.Destination}` : "Pre-order meal",
-                price: m.Price || 0,
-                emoji: getMealEmoji(m.AirlineDescription || m.Code || ""),
-                tag: m.Price === 0 ? "Free" : "Live",
-                tagColor: m.Price === 0 ? "bg-gray-100 text-gray-500" : "bg-[#FFF1F2] text-[#F12B19]",
+                price: m.Price || 0, emoji: m.Price === 0 ? "✕" : (i % 2 === 0 ? "🥗" : "🍗"),
+                tag: m.Price === 0 ? "Free" : "Live", tagColor: m.Price === 0 ? "bg-gray-100 text-gray-500" : "bg-[#FFF1F2] text-[#F12B19]",
                 borderSelected: "border-[#F12B19]"
               }));
               if (mapped.length > 0) updatedMeals = mapped;
@@ -102,7 +80,7 @@ export default function BookingPersonalize({ flight, passengers = [], onContinue
                 id: b.Code || `bag_${b.Weight}_${i}`, label: `Extra Baggage — ${b.Weight || 15} kg`,
                 price: b.Price || 799, desc: `Add ${b.Weight || 15} kg check-in baggage`, badge: i === 0 ? "Popular" : i === 1 ? "Best Value" : "Extra"
               }));
-              if (mapped.length > 0) updatedAddons = mapped;
+              if (mapped.length > 0) updatedAddons = [...mapped, DEFAULT_ADDONS[2], DEFAULT_ADDONS[3]];
             }
           }
           setMealsList(updatedMeals);
@@ -114,9 +92,9 @@ export default function BookingPersonalize({ flight, passengers = [], onContinue
   }, [flight]);
 
   const totalMealCost = (meals) => Object.values(meals).reduce((s, id) => s + (mealsList.find(m => m.id === id)?.price || 0), 0);
-  const addonsCost = (addons) => addons.reduce((s, id) => s + (addonsList.find(a => a.id === id)?.price || 0), 0);
+  const addonsCost = (addons, ins) => addons.reduce((s, id) => s + (addonsList.find(a => a.id === id)?.price || 0), 0) + (ins ? 149 : 0);
 
-  const pushUpdate = (meals, addons) => {
+  const pushUpdate = (meals, addons, ins) => {
     if (!onAddonsUpdate) return;
     const mc = totalMealCost(meals);
     const primaryMeal = Object.values(meals).find(m => m !== "none") || "none";
@@ -161,28 +139,34 @@ export default function BookingPersonalize({ flight, passengers = [], onContinue
       baggageSelections,
       mealPrice: mc,
       addons,
-      insurance: false,
-      totalAdditional: (prev.seatPrice || 0) + mc + addonsCost(addons)
+      insurance: ins,
+      totalAdditional: (prev.seatPrice || 0) + mc + addonsCost(addons, ins)
     }));
   };
 
   const handleMealSelect = (idx, id) => {
     const updated = { ...paxMeals, [idx]: id };
     setPaxMeals(updated);
-    pushUpdate(updated, selectedAddons);
+    pushUpdate(updated, selectedAddons, isInsuranceAdded);
   };
 
   const handleAddonClick = (id) => {
     const updated = selectedAddons.includes(id) ? selectedAddons.filter(a => a !== id) : [...selectedAddons, id];
     setSelectedAddons(updated);
-    pushUpdate(paxMeals, updated);
+    pushUpdate(paxMeals, updated, isInsuranceAdded);
+  };
+
+  const handleInsuranceClick = () => {
+    const updated = !isInsuranceAdded;
+    setIsInsuranceAdded(updated);
+    pushUpdate(paxMeals, selectedAddons, updated);
   };
 
   const paxList = passengers.length > 0 ? passengers : [{ id: 1, title: "Mr.", firstName: "", type: "Adult" }];
   const mealCount = Object.values(paxMeals).filter(m => m !== "none").length;
   const mealTotal = totalMealCost(paxMeals);
 
-  const addonIcons = { bag_15: <Luggage size={18} className="text-[#F12B19]" />, bag_30: <Luggage size={18} className="text-[#F12B19]" /> };
+  const addonIcons = { bag_15: <Luggage size={18} className="text-[#F12B19]" />, bag_30: <Luggage size={18} className="text-[#F12B19]" />, priority: <Zap size={18} className="text-[#F12B19]" />, wifi: <Wifi size={18} className="text-[#F12B19]" /> };
 
   return (
     <div className="space-y-5 font-['Quicksand'] text-left select-none">
@@ -341,6 +325,29 @@ export default function BookingPersonalize({ flight, passengers = [], onContinue
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* 3. TRAVEL INSURANCE */}
+      <div className="w-full bg-white border border-[#eaeaea] rounded-[13.88px] p-5 md:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0"><ShieldCheck size={20} className="text-emerald-600" /></div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="font-['Satoshi'] font-bold text-[14.5px] text-[#1A1A1A]">Travel Insurance</span>
+                <span className="bg-emerald-100 text-emerald-700 text-[9.5px] font-bold uppercase px-2 py-0.5 rounded-full">Recommended</span>
+              </div>
+              <p className="font-['Quicksand'] text-[11.5px] text-[#999] font-medium">₹5L coverage &middot; Trip cancellation &middot; Medical &middot; Baggage loss</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <span className="font-['Satoshi'] font-bold text-[17px] text-[#1A1A1A]">₹149</span>
+            <button type="button" onClick={handleInsuranceClick}
+              className={`font-['Quicksand'] font-bold text-[13px] px-5 py-2.5 rounded-xl transition-all cursor-pointer ${isInsuranceAdded ? "bg-emerald-500 hover:bg-emerald-600 text-white" : "bg-[#F12B19] hover:bg-red-700 text-white"}`}>
+              {isInsuranceAdded ? "✓ Added" : "+ Add"}
+            </button>
+          </div>
         </div>
       </div>
 

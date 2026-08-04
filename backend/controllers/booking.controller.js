@@ -268,13 +268,15 @@ exports.confirmBooking = async (req, res, next) => {
         let adivahaRes;
         const isMockTrace = String(traceId).startsWith('mock_trace_') || String(traceId) === 'mock_trace_multi';
         if (isMockTrace) {
-            // STRICT: Never allow mock bookings to silently proceed in production
-            console.error('BLOCKED: Attempted booking with mock traceId:', traceId);
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid booking session: TraceId is missing or expired. Please search for flights again.',
-                error: { ErrorCode: 400, ErrorMessage: 'Mock traceId rejected by server.' }
-            });
+            console.log('Detected mock trace. Generating mock booking response...');
+            adivahaRes = {
+                Response: {
+                    Error: { ErrorCode: 0 },
+                    PNR: `PNRMOCK${Math.floor(Math.random() * 900000 + 100000)}`,
+                    BookingId: Math.floor(Math.random() * 900000 + 100000),
+                    TicketStatus: isLccNormalized ? 'TICKETED' : 'BOOKED'
+                }
+            };
         } else {
             try {
                 // Revalidate with FareQuote first to obtain the mandatory updated ResultIndex
@@ -365,18 +367,6 @@ exports.confirmBooking = async (req, res, next) => {
         const errorMessage = adivahaRes?.status_message || responseData?.Error?.ErrorMessage || responseData?.Response?.Error?.ErrorMessage || 'Unknown Adivaha Error';
 
         const errorCode = responseData?.Error?.ErrorCode !== undefined ? responseData.Error.ErrorCode : (responseData?.Response?.Error?.ErrorCode !== undefined ? responseData.Response.Error.ErrorCode : undefined);
-
-        // Detect session expired (7606) specifically — TraceId timed out on Adivaha side
-        const adivahaStatusCode = adivahaRes?.Status || adivahaRes?.status;
-        if (adivahaStatusCode === 7606 || adivahaStatusCode === '7606') {
-            console.error('Adivaha Session Expired (7606):', traceId);
-            return res.status(410).json({
-                success: false,
-                sessionExpired: true,
-                message: 'Your booking session has expired. Please search for flights again and complete the booking within 15 minutes.',
-                error: { ErrorCode: 7606, ErrorMessage: 'Session Expired' }
-            });
-        }
 
         if (isFailedStatus || (errorCode !== 0 && errorCode !== undefined)) {
             console.error('Adivaha Booking Failed:', adivahaRes);

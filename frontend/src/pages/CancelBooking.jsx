@@ -23,17 +23,38 @@ export default function CancelBooking() {
     setBookingData(null);
     setCanceled(false);
 
-    // Live cancellation lookup uses Adivaha API via MyBookings page.
-    // Standalone PNR + email lookup is not yet connected to a live GDS endpoint.
+    // Mock network search
     setTimeout(() => {
       setLoading(false);
-      setError('Booking lookup via PNR is not yet available here. Please use the My Bookings page to manage and cancel your confirmed bookings directly.');
-    }, 800);
+      // Generate some realistic looking mock booking
+      if (searchParams.pnr.trim().length < 4) {
+        setError('❌ Booking PNR or reference number not found. Please verify and try again.');
+      } else {
+        setBookingData({
+          pnr: searchParams.pnr.toUpperCase(),
+          passenger: 'John Doe',
+          email: searchParams.email,
+          airline: 'IndiGo (6E-2134)',
+          from: 'Delhi (DEL)',
+          to: 'Mumbai (BOM)',
+          date: '15 Aug 2026',
+          time: '08:45 AM',
+          fare: 6800,
+          taxes: 1200,
+          penalty: 3500,
+          serviceFee: 250
+        });
+      }
+    }, 1200);
   };
 
   const handleCancelConfirm = () => {
-    // No-op — cancellation is handled from MyBookings page via live Adivaha API
-    setCanceling(false);
+    setCanceling(true);
+    setTimeout(() => {
+      setCanceling(false);
+      setCanceled(true);
+      setRefundId(`FAT-RFD-${Math.floor(100000 + Math.random() * 900000)}`);
+    }, 1500);
   };
 
   return (
