@@ -7,6 +7,7 @@ import phoneIconImg from '../../assets/Mobile phone/Group 14.svg';
 const TRAVEL = [
   { label: 'Flights', path: '/?tab=flights' },
   { label: 'Hotels', path: '/?tab=hotels' },
+  { label: 'Trains', path: '/?tab=trains' },
   { label: 'Tour Packages', path: '/tour-packages' }
 ];
 const HOLIDAYS = [
