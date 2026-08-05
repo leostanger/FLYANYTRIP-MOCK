@@ -17,7 +17,7 @@ const DEFAULT_MEALS = [
   { id: "nonveg", label: "Non-Veg",   desc: "Chicken curry, Rice, Naan",   price: 349, emoji: "🍗", tag: "Chef's Pick", tagColor: "bg-amber-100 text-amber-700",   borderSelected: "border-amber-500"   },
   { id: "vegan",  label: "Vegan",     desc: "No dairy, plant-based",       price: 329, emoji: "🌱", tag: null,          tagColor: "",                              borderSelected: "border-emerald-400" },
   { id: "jain",   label: "Jain",      desc: "No root vegetables",          price: 299, emoji: "🙏", tag: null,          tagColor: "",                              borderSelected: "border-orange-400"  },
-  { id: "none",   label: "No Meal",   desc: "Skip in-flight meal",         price: 0,   emoji: "✕",  tag: "Free",        tagColor: "bg-gray-100 text-gray-500",     borderSelected: "border-gray-400"    }
+  { id: "none",   label: "No Meal",   desc: "Skip in-flight meal",         price: 0,   emoji: "🍽️", tag: "Free",        tagColor: "bg-gray-100 text-gray-500",     borderSelected: "border-gray-400"    }
 ];
 
 /* --- Default Fallback Addons --- */
@@ -58,31 +58,115 @@ export default function BookingPersonalize({ flight, passengers = [], onContinue
           let updatedMeals = [...DEFAULT_MEALS];
           let updatedAddons = [...DEFAULT_ADDONS];
           let hasLive = false;
+
+          const getMealEmoji = (label, code, price) => {
+            const text = (String(label || '') + ' ' + String(code || '')).toLowerCase();
+            if (text.includes('biryani') || text.includes('rice')) return '🍲';
+            if (text.includes('sandwich') || text.includes('tikka combo')) return '🥪';
+            if (text.includes('paneer')) return '🧀';
+            if (text.includes('chicken') || text.includes('non-veg') || text.includes('nonveg')) return '🍗';
+            if (text.includes('vegan') || text.includes('plant')) return '🌱';
+            if (text.includes('jain')) return '🙏';
+            if (text.includes('veg') || text.includes('salad')) return '🥗';
+            if (text.includes('corporate') || text.includes('combo') || text.includes('thali')) return '🍱';
+            if (text.includes('snack') || text.includes('cookie') || text.includes('nut')) return '🍪';
+            if (text.includes('beverage') || text.includes('drink') || text.includes('juice')) return '🥤';
+            if (price === 0 || text.includes('nomeal') || text.includes('no meal')) return '🍽️';
+            return '🍽️';
+          };
+
           if (Array.isArray(ssrRes.MealDynamic) && ssrRes.MealDynamic.length > 0) {
-            const apiMeals = Array.isArray(ssrRes.MealDynamic[0]) ? ssrRes.MealDynamic[0] : ssrRes.MealDynamic;
-            if (apiMeals.length > 0) {
+            let allRawMeals = [];
+            ssrRes.MealDynamic.forEach(item => {
+              if (Array.isArray(item)) {
+                allRawMeals.push(...item);
+              } else if (item && typeof item === 'object') {
+                allRawMeals.push(item);
+              }
+            });
+
+            if (allRawMeals.length > 0) {
               hasLive = true;
-              const mapped = apiMeals.map((m, i) => ({
-                id: m.Code || `meal_${i}`, label: m.AirlineDescription || m.Code || `Option ${i + 1}`,
-                desc: m.Origin && m.Destination ? `${m.Origin} → ${m.Destination}` : "Pre-order meal",
-                price: m.Price || 0, emoji: m.Price === 0 ? "✕" : (i % 2 === 0 ? "🥗" : "🍗"),
-                tag: m.Price === 0 ? "Free" : "Live", tagColor: m.Price === 0 ? "bg-gray-100 text-gray-500" : "bg-[#FFF1F2] text-[#F12B19]",
-                borderSelected: "border-[#F12B19]"
-              }));
+              const uniqueMealsMap = new Map();
+
+              // Add clean No Meal default option first
+              uniqueMealsMap.set('none', {
+                id: 'none',
+                label: 'No Meal',
+                desc: 'Skip in-flight meal',
+                price: 0,
+                emoji: '🍽️',
+                tag: 'Free',
+                tagColor: 'bg-gray-100 text-gray-500',
+                borderSelected: 'border-gray-400'
+              });
+
+              allRawMeals.forEach((m, i) => {
+                const rawLabel = (m.AirlineDescription || m.Code || `Option ${i + 1}`).trim();
+                const code = m.Code || `meal_${i}`;
+                const price = m.Price || 0;
+
+                // Ignore API NoMeal items so we don't duplicate our primary NoMeal option
+                const lowerLabel = rawLabel.toLowerCase();
+                if (lowerLabel.includes('no meal') || lowerLabel.includes('nomeal') || lowerLabel === 'no') {
+                  return;
+                }
+
+                // Deduplicate by clean label + price
+                const dedupKey = `${rawLabel.toLowerCase()}_${price}`;
+                if (!uniqueMealsMap.has(dedupKey)) {
+                  uniqueMealsMap.set(dedupKey, {
+                    id: code,
+                    label: rawLabel,
+                    desc: m.Origin && m.Destination ? `${m.Origin} → ${m.Destination}` : (price === 0 ? "Complimentary Meal" : "Pre-order meal"),
+                    price: price,
+                    emoji: getMealEmoji(rawLabel, code, price),
+                    tag: price === 0 ? "Free" : "Live",
+                    tagColor: price === 0 ? "bg-gray-100 text-gray-500" : "bg-[#FFF1F2] text-[#F12B19]",
+                    borderSelected: "border-[#F12B19]"
+                  });
+                }
+              });
+
+              const mapped = Array.from(uniqueMealsMap.values());
               if (mapped.length > 0) updatedMeals = mapped;
             }
           }
+
           if (Array.isArray(ssrRes.Baggage) && ssrRes.Baggage.length > 0) {
-            const apiBag = Array.isArray(ssrRes.Baggage[0]) ? ssrRes.Baggage[0] : ssrRes.Baggage;
-            if (apiBag.length > 0) {
+            let allRawBaggage = [];
+            ssrRes.Baggage.forEach(item => {
+              if (Array.isArray(item)) {
+                allRawBaggage.push(...item);
+              } else if (item && typeof item === 'object') {
+                allRawBaggage.push(item);
+              }
+            });
+
+            if (allRawBaggage.length > 0) {
               hasLive = true;
-              const mapped = apiBag.filter(b => b.Weight > 0 || b.Price > 0).map((b, i) => ({
-                id: b.Code || `bag_${b.Weight}_${i}`, label: `Extra Baggage — ${b.Weight || 15} kg`,
-                price: b.Price || 799, desc: `Add ${b.Weight || 15} kg check-in baggage`, badge: i === 0 ? "Popular" : i === 1 ? "Best Value" : "Extra"
-              }));
+              const uniqueBagMap = new Map();
+
+              allRawBaggage.filter(b => b.Weight > 0 || b.Price > 0).forEach((b, i) => {
+                const weight = b.Weight || 15;
+                const price = b.Price || 799;
+                const dedupKey = `${weight}_${price}`;
+                if (!uniqueBagMap.has(dedupKey)) {
+                  uniqueBagMap.set(dedupKey, {
+                    id: b.Code || `bag_${weight}_${i}`,
+                    label: `Extra Baggage — ${weight} kg`,
+                    price: price,
+                    desc: `Add ${weight} kg check-in baggage`,
+                    badge: uniqueBagMap.size === 0 ? "Popular" : uniqueBagMap.size === 1 ? "Best Value" : "Extra"
+                  });
+                }
+              });
+
+              const mapped = Array.from(uniqueBagMap.values());
               if (mapped.length > 0) updatedAddons = [...mapped, DEFAULT_ADDONS[2], DEFAULT_ADDONS[3]];
             }
           }
+
           setMealsList(updatedMeals);
           setAddonsList(updatedAddons);
           setIsLiveSsr(hasLive);
