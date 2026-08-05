@@ -7,19 +7,12 @@ import phoneIconImg from '../../assets/Mobile phone/Group 14.svg';
 const TRAVEL = [
   { label: 'Flights', path: '/?tab=flights' },
   { label: 'Hotels', path: '/?tab=hotels' },
-  { label: 'Trains', path: '/' },
-  { label: 'Bus Tickets', path: '/' },
-  { label: 'Tour Packages', path: '/tour-packages' },
-  { label: 'Car Rentals', path: '/' },
-  { label: 'Cab Booking', path: '/' }
+  { label: 'Tour Packages', path: '/tour-packages' }
 ];
 const HOLIDAYS = [
-  { label: 'Internationals Tours', path: '/tour-packages' },
+  { label: 'International Tours', path: '/tour-packages' },
   { label: 'Domestic Tours', path: '/tour-packages' },
-  { label: 'Honeymoon', path: '/tour-packages' },
-  { label: 'Adventure', path: '/tour-packages' },
-  { label: 'Family Holidays', path: '/tour-packages' },
-  { label: 'Beach Packages', path: '/tour-packages' }
+  { label: 'Honeymoon', path: '/tour-packages' }
 ];
 const SUPPORT_LINKS = [
   { label: 'Help Center', path: '/support' },
@@ -31,11 +24,7 @@ const SUPPORT_LINKS = [
 ];
 const COMPANY = [
   { label: 'About Us', path: '/about-us' },
-  { label: 'Careers', path: '/careers' },
-  { label: 'Press', path: '/' },
-  { label: 'Blog', path: '/' },
-  { label: 'Partners', path: '/' },
-  { label: 'Investors', path: '/' }
+  { label: 'Careers', path: '/careers' }
 ];
 
 const CompanyLogo = ({ className }) => (
