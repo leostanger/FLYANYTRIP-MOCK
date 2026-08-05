@@ -32,6 +32,14 @@ export const flightService = {
     return fetchAPI(`/flights/calendar-fare?${query}`);
   },
 
+  // Get flight SSR (seats, meals, baggage)
+  getFlightSSR: async ({ traceId, resultIndex }) => {
+    return fetchAPI('/flights/ssr', {
+      method: 'POST',
+      body: JSON.stringify({ traceId, resultIndex }),
+    });
+  },
+
   // Create flight booking
   createBooking: async (bookingData) => {
     return fetchAPI('/flights/book', {

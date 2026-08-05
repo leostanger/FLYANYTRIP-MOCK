@@ -8,6 +8,8 @@
 import React, { useState, useEffect } from "react";
 import { Plane, Check, X, Shield, Info, ChevronRight, Loader2 } from "lucide-react";
 
+import flightService from "../../services/flightService";
+
 export default function BookingSeat({ flight, passengers = [], onContinue, onSeatSelect }) {
   const paxList = passengers.length > 0 ? passengers : [
     { firstName: "Rahul", lastName: "Sharma" }
@@ -26,15 +28,9 @@ export default function BookingSeat({ flight, passengers = [], onContinue, onSea
     const rIdx = flight?.resultIndex || flight?.raw?.resultIndex || flight?.id;
     if (tId && rIdx) {
       setSsrLoading(true);
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
-      fetch(`${baseUrl}/flights/ssr`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ traceId: tId, resultIndex: rIdx })
-      })
-      .then(res => res.json())
+      flightService.getFlightSSR({ traceId: tId, resultIndex: rIdx })
       .then(data => {
-        const ssrResponse = data?.data?.responseData?.Response || data?.data?.Response;
+        const ssrResponse = data?.data?.responseData?.Response || data?.data?.Response || data?.responseData?.Response || data?.Response;
         if (ssrResponse?.SeatDynamic && Array.isArray(ssrResponse.SeatDynamic)) {
           setLiveSsrSeats(ssrResponse.SeatDynamic);
           setIsLiveSsr(true);

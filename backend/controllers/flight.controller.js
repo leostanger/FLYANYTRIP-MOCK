@@ -196,8 +196,9 @@ const getCalendarFare = async (req, res, next) => {
     if (!fares || fares.length === 0) {
       console.log('No calendar fares returned from Adivaha.');
       fares = [];
+    } else {
+      apiCache.set(cacheKey, fares);
     }
-    apiCache.set(cacheKey, fares);
 
     return res.status(200).json({
       success: true,
@@ -333,23 +334,25 @@ const getFlightSSR = async (req, res, next) => {
       return res.status(200).json({ success: true, source: 'cache', data: cached });
     }
 
-    // 1. Pre-revalidate session TraceId with Adivaha API so SSR seat map is unlocked
-    try {
-      await adivahaService.getFlightFareQuote({
+    // Fetch live Adivaha API SSR directly (SeatDynamic, Baggage, MealDynamic)
+    // Run fareQuote revalidation in parallel to prevent Vercel 10s serverless function timeout
+    const [ssrResult] = await Promise.allSettled([
+      adivahaService.getFlightSSR({ 
+        TraceId: traceId, 
+        ResultIndex: resultIndex,
+        EndUserIp: endUserIp
+      }),
+      adivahaService.getFlightFareQuote({
         TraceId: traceId,
         ResultIndex: resultIndex,
         EndUserIp: endUserIp
-      });
-    } catch (revalErr) {
-      console.warn('Adivaha pre-SSR revalidate warning:', revalErr.message);
-    }
+      }).catch(err => console.warn('Adivaha pre-SSR revalidate warning:', err.message))
+    ]);
 
-    // 2. Fetch live Adivaha API SSR (SeatDynamic, Baggage, MealDynamic)
-    const ssr = await adivahaService.getFlightSSR({ 
-      TraceId: traceId, 
-      ResultIndex: resultIndex,
-      EndUserIp: endUserIp
-    });
+    const ssr = ssrResult.status === 'fulfilled' ? ssrResult.value : null;
+    if (!ssr) {
+      throw new Error('Failed to fetch SSR details from Adivaha');
+    }
     apiCache.set(cacheKey, ssr);
 
     return res.status(200).json({ success: true, source: 'api', data: ssr });

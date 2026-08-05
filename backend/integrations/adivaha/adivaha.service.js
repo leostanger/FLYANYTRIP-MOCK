@@ -47,6 +47,11 @@ adivahaClient.interceptors.response.use(
           });
 
           console.log('Token refreshed successfully. Retrying original request...');
+          if (typeof originalRequest.data === 'string') {
+            try {
+              originalRequest.data = JSON.parse(originalRequest.data);
+            } catch (e) {}
+          }
           // Retry the original request
           return adivahaClient(originalRequest);
         } catch (refreshError) {

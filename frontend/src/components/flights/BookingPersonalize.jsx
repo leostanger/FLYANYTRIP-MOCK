@@ -10,6 +10,7 @@ import React, { useState, useEffect } from "react";
 import {
   Utensils, Luggage, Zap, Wifi, ShieldCheck, Check, User, ChevronDown, ChevronUp
 } from "lucide-react";
+import flightService from "../../services/flightService";
 
 /* --- Default Fallback Meals --- */
 const DEFAULT_MEALS = [
@@ -45,15 +46,9 @@ export default function BookingPersonalize({ flight, passengers = [], onContinue
     const tId = flight?.traceId || flight?.raw?.traceId;
     const rIdx = flight?.resultIndex || flight?.raw?.resultIndex || flight?.id;
     if (tId && rIdx) {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
-      fetch(`${baseUrl}/flights/ssr`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ traceId: tId, resultIndex: rIdx })
-      })
-        .then(r => r.json())
+      flightService.getFlightSSR({ traceId: tId, resultIndex: rIdx })
         .then(data => {
-          const ssrRes = data?.data?.responseData?.Response || data?.data?.Response;
+          const ssrRes = data?.data?.responseData?.Response || data?.data?.Response || data?.responseData?.Response || data?.Response;
           if (!ssrRes) return;
           let updatedMeals = [...DEFAULT_MEALS];
           let updatedAddons = [...DEFAULT_ADDONS];
