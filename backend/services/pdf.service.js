@@ -1,4 +1,4 @@
-const pdfMake = require('pdfmake');
+const PdfPrinter = require('pdfmake');
 const path = require('path');
 
 class PDFService {
@@ -19,17 +19,28 @@ class PDFService {
         }
       };
 
-      pdfMake.setFonts(fonts);
+      const printer = new PdfPrinter(fonts);
       
       // Ensure default font is applied
       docDefinition.defaultStyle = docDefinition.defaultStyle || {};
       docDefinition.defaultStyle.font = 'Roboto';
 
-      // Create PDF and return buffer
-      const pdfDoc = pdfMake.createPdf(docDefinition);
-      const pdfBuffer = await pdfDoc.getBuffer();
+      // Create PDF Kit Document
+      const pdfDoc = printer.createPdfKitDocument(docDefinition);
       
-      return pdfBuffer;
+      return new Promise((resolve, reject) => {
+        let chunks = [];
+        pdfDoc.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+        pdfDoc.on('end', () => {
+          resolve(Buffer.concat(chunks));
+        });
+        pdfDoc.on('error', (err) => {
+          reject(err);
+        });
+        pdfDoc.end();
+      });
     } catch (error) {
       console.error('Error generating PDF with PDFMake:', error);
       throw error;

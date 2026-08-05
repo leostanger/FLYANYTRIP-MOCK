@@ -1,8 +1,8 @@
-import domtoimage from 'dom-to-image-more';
+import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
 /**
- * Helper to pre-convert external images inside an element to Base64 Data URLs so domtoimage can capture them without CORS issues.
+ * Helper to pre-convert external images inside an element to Base64 Data URLs so html2canvas can capture them without CORS issues.
  */
 const prepareContainerImages = async (container) => {
   const images = Array.from(container.querySelectorAll('img'));
@@ -42,7 +42,7 @@ export const downloadElementAsPDF = async (elementId, fileName = 'FlyAnyTrip-Inv
   }
 
   try {
-    // Convert external images to Data URLs so domtoimage doesn't drop them
+    // Convert external images to Data URLs so it doesn't drop them
     await prepareContainerImages(element);
 
     const pageElements = element.querySelectorAll('.invoice-page-single');
@@ -51,28 +51,27 @@ export const downloadElementAsPDF = async (elementId, fileName = 'FlyAnyTrip-Inv
     if (pageElements && pageElements.length > 0) {
       for (let i = 0; i < pageElements.length; i++) {
         const pageEl = pageElements[i];
-        const imgData = await domtoimage.toPng(pageEl, {
-          bgcolor: '#ffffff',
+        const canvas = await html2canvas(pageEl, {
+          backgroundColor: '#ffffff',
           scale: 2,
-          cacheBust: true,
-          style: { transform: 'scale(1)', transformOrigin: 'top left' }
+          useCORS: true,
+          logging: false
         });
+        const imgData = canvas.toDataURL('image/png');
 
         if (i > 0) pdf.addPage('a4', 'p');
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
       }
     } else {
-      const imgData = await domtoimage.toPng(element, {
-        bgcolor: '#ffffff',
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#ffffff',
         scale: 2,
-        cacheBust: true,
-        style: { transform: 'scale(1)', transformOrigin: 'top left' }
+        useCORS: true,
+        logging: false
       });
-      const img = new Image();
-      img.src = imgData;
-      await new Promise((resolve) => { img.onload = resolve; });
+      const imgData = canvas.toDataURL('image/png');
       const pdfWidth = 210;
-      const pdfHeight = (img.height * pdfWidth) / img.width;
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
     }
 
@@ -105,31 +104,27 @@ export const generateElementAsPDFBase64 = async (elementId) => {
     if (pageElements && pageElements.length > 0) {
       for (let i = 0; i < pageElements.length; i++) {
         const pageEl = pageElements[i];
-        const imgData = await domtoimage.toPng(pageEl, {
-          bgcolor: '#ffffff',
+        const canvas = await html2canvas(pageEl, {
+          backgroundColor: '#ffffff',
           scale: 1.5,
-          cacheBust: false,
-          style: { transform: 'scale(1)', transformOrigin: 'top left' }
+          useCORS: true,
+          logging: false
         });
+        const imgData = canvas.toDataURL('image/png');
 
         if (i > 0) pdf.addPage('a4', 'p');
         pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
       }
     } else {
-      const imgData = await domtoimage.toPng(element, {
-        bgcolor: '#ffffff',
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#ffffff',
         scale: 1.5,
-        cacheBust: false,
-        style: { transform: 'scale(1)', transformOrigin: 'top left' }
+        useCORS: true,
+        logging: false
       });
-      const img = new Image();
-      img.src = imgData;
-      await new Promise((resolve) => { 
-        img.onload = resolve; 
-        img.onerror = resolve;
-      });
+      const imgData = canvas.toDataURL('image/png');
       const pdfWidth = 210;
-      const pdfHeight = (img.height * pdfWidth) / img.width;
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
     }
 
