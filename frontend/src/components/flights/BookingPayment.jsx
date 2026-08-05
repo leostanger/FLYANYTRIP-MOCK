@@ -32,6 +32,8 @@ const loadRazorpayScript = () => {
 };
 
 /* ─── Component ─────────────────────────────────────────────────────────── */
+import { fetchAPI } from "../../services/api";
+
 export default function BookingPayment({ flight, selectedFare, passengers = [], contactDetails = {}, addonsData = {}, totalAmount = 3499, onCouponUpdate, onPay }) {
   const [selectedPaymentOption, setSelectedPaymentOption] = useState("razorpay"); // 'razorpay' or 'demo'
   const [couponCode, setCouponCode]                       = useState(addonsData?.couponCode || "");
@@ -109,29 +111,10 @@ export default function BookingPayment({ flight, selectedFare, passengers = [], 
       let orderAmount = Math.round(finalPayAmount * 100);
 
       try {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
-        console.log("Base URL (Payment):", baseUrl);
-        console.log("Final URL (Payment):", `${baseUrl}/payment/create-order`);
-
-        const res = await fetch(`${baseUrl}/payment/create-order`, {
+        const data = await fetchAPI('/payment/create-order', {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ amount: finalPayAmount })
-        });
-
-        console.log("Response Status (Payment):", res.status);
-        console.log("Response OK (Payment):", res.ok);
-
-        const text = await res.text();
-        console.log("Raw Response Text (Payment):", text);
-
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch (jsonErr) {
-          console.error("Failed to parse JSON response for payment order:", jsonErr);
-          data = { success: false };
-        }
+        }).catch(err => ({ success: false, error: err.message }));
 
         if (data?.success && data?.data?.orderId) {
           orderId = data.data.orderId;

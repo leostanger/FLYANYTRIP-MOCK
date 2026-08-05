@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import InvoiceTemplate from "../../common/InvoiceTemplate";
 import BoardingPassTemplate from "../../common/BoardingPassTemplate";
-import { downloadElementAsPDF, generateElementAsPDFBase64 } from "../../common/pdfGenerator";
+import { fetchAPI } from "../../services/api";
 
 const INVOICE_ID = "flyanytrip-tax-invoice";
 const BOARDING_PASS_ID = "flyanytrip-official-boarding-pass-pdf";
@@ -91,13 +91,10 @@ export default function BookingConfirmation({ flight, fare, cabinClass: cabinCla
         transactionId,
       };
 
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
-      const res = await fetch(`${baseUrl}/booking/send-invoice-email`, {
+      const data = await fetchAPI('/booking/send-invoice-email', {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      });
-      const data = await res.json();
+      }).catch(err => ({ success: false, error: err.message }));
       return data;
     } catch (err) {
       console.error("Email send error:", err);
