@@ -115,16 +115,14 @@ class AdivahaFlightService {
 
   static async searchFlights(searchPayload) {
     try {
-      const {
-        origin,
-        destination,
-        departureDate,
-        returnDate,
-        adults = "1",
-        children = "0",
-        infants = "0",
-        tripType = "oneway"
-      } = searchPayload;
+      const origin = searchPayload.origin || searchPayload.from || searchPayload.From_IATACODE;
+      const destination = searchPayload.destination || searchPayload.to || searchPayload.To_IATACODE;
+      const departureDate = searchPayload.departureDate || searchPayload.departDate || searchPayload.departure_date || searchPayload.date;
+      const returnDate = searchPayload.returnDate || searchPayload.return_date;
+      const adults = searchPayload.adults || "1";
+      const children = searchPayload.children || "0";
+      const infants = searchPayload.infants || "0";
+      const tripType = searchPayload.tripType || "oneway";
 
       const formatDate = (dateStr) => this.formatDate(dateStr);
 
