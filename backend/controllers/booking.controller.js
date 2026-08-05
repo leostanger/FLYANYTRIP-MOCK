@@ -17,17 +17,11 @@ exports.revalidateBooking = async (req, res, next) => {
 
         const isMockTrace = String(traceId).startsWith('mock_trace_') || String(traceId) === 'mock_trace_multi';
         if (isMockTrace) {
-            console.log('Detected mock trace. Mocking revalidateBooking...');
-            return res.status(200).json({
-                success: true,
-                data: {
-                    Response: {
-                        Error: { ErrorCode: 0 },
-                        Results: {
-                            Fare: { OfferedFare: 3499, PublishedFare: 3499 }
-                        }
-                    }
-                }
+            console.error('BLOCKED: Attempted revalidateBooking with mock traceId:', traceId);
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid booking session: TraceId is missing or expired. Please search for flights again.',
+                error: { ErrorCode: 400, ErrorMessage: 'Mock traceId rejected by server.' }
             });
         }
 
@@ -39,17 +33,11 @@ exports.revalidateBooking = async (req, res, next) => {
 
         res.status(200).json({ success: true, data: adivahaRes });
     } catch (error) {
-        console.warn('Adivaha revalidateBooking call failed, serving mock quote:', error.message);
-        res.status(200).json({
-            success: true,
-            data: {
-                Response: {
-                    Error: { ErrorCode: 0 },
-                    Results: {
-                        Fare: { OfferedFare: 3499, PublishedFare: 3499 }
-                    }
-                }
-            }
+        console.error('Adivaha revalidateBooking call failed:', error.message);
+        res.status(400).json({
+            success: false,
+            message: 'Flight fare quote revalidation failed: ' + (error.message || 'Unknown Adivaha error'),
+            error: error.message || error
         });
     }
 };
@@ -1273,42 +1261,14 @@ exports.downloadInvoice = async (req, res, next) => {
                 };
             }
         } catch (dbErr) {
-            console.warn('Database offline during invoice download. Falling back to mock generator:', dbErr.message);
+            console.error('Database error during invoice download:', dbErr.message);
         }
 
-        // Fallback mock invoice data if database query failed or returned null
         if (!invoiceData) {
-            invoiceData = {
-                pnr: `ATP${Math.floor(100000 + Math.random() * 900000)}`,
-                bookingId: id,
-                bookingDate: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-                passengers: [
-                    {
-                        firstName: 'Emma',
-                        lastName: 'Watson',
-                        gender: 'Female',
-                        dob: '1990-04-15',
-                        passportNo: 'N/A',
-                        passportExpiry: 'N/A',
-                        meal: 'Standard',
-                        baggage: '15 KGs',
-                        seat: 'Unassigned',
-                        ticketStatus: 'CONFIRMED'
-                    }
-                ],
-                origin: 'BOM',
-                destination: 'LKO',
-                departureDate: new Date().toLocaleString(),
-                airline: 'AI',
-                totalFare: 3643,
-                baseFare: 2550,
-                taxes: 1093,
-                status: 'CONFIRMED',
-                contactEmail: 'customer@flyanytrip.com',
-                contactPhone: '+91 9545689585',
-                gstNumber: 'N/A',
-                state: 'N/A'
-            };
+            return res.status(404).json({
+                success: false,
+                message: 'Booking record not found in database for generating invoice.'
+            });
         }
 
         const docDefinition = getInvoiceDocDefinition(invoiceData);
