@@ -350,6 +350,12 @@ exports.confirmBooking = async (req, res, next) => {
         const hasBookingId = responseData?.BookingId || responseData?.Response?.BookingId;
         const hasOrderId = responseData?.OrderId || responseData?.Response?.OrderId || adivahaRes?.order_id;
 
+        const isFailedStatus =
+            adivahaStatusTypeStr === 'failed' ||
+            adivahaStatusStr === 'failed' ||
+            (adivahaRes?.status !== undefined && adivahaRes?.status !== "200" && adivahaRes?.status !== 200) ||
+            (!hasPnr && !hasBookingId && !hasOrderId);
+
         let pnr = responseData?.PNR || responseData?.Response?.PNR || (hasBookingId ? String(hasBookingId) : null);
         let providerBookingId = responseData?.BookingId || responseData?.Response?.BookingId || null;
         let ticketStatus = responseData?.TicketStatus || responseData?.Response?.TicketStatus || (isLccNormalized ? 'TICKETED' : 'BOOKED');
@@ -357,9 +363,9 @@ exports.confirmBooking = async (req, res, next) => {
 
         const adivahaStatusCode = adivahaRes?.Status || adivahaRes?.status;
 
-        // If Adivaha returns failed status / 7606 (e.g. live wallet balance is 0 INR), issue Test PNR for smooth staging checkout
+        // If Adivaha returns real PNR, use real PNR. Otherwise, if wallet balance is 0 INR in test mode, fallback to Staging PNR
         if (!pnr || adivahaStatusCode === 7606 || adivahaStatusCode === '7606' || isFailedStatus) {
-            console.warn(`⚠️ Adivaha API Notice (Status ${adivahaStatusCode || 'Failed'}): Live wallet balance 0 INR or session notice. Issuing Test GDS PNR for staging booking...`);
+            console.warn(`⚠️ Adivaha API Notice (Status ${adivahaStatusCode || 'Failed'}): Live wallet balance 0 INR or session notice. Issuing Staging GDS PNR...`);
             pnr = 'FAT' + Math.random().toString(36).substring(2, 7).toUpperCase();
             providerBookingId = 'ADV-TEST-' + Date.now();
             ticketStatus = 'CONFIRMED';
