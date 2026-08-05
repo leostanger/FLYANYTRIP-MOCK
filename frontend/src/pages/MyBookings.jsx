@@ -34,141 +34,9 @@ const calculateExpectedRefundDate = (dateStr) => {
   return '22 Dec 2026';
 };
 
-const INITIAL_TRIPS = [
-  {
-    id: 'tr-1',
-    airline: 'INDIGO',
-    airlineCode: 'IndiGo',
-    logoBg: 'bg-[#002B66]',
-    flightNum: 'FLY8K2M4',
-    depTime: '06:00',
-    depCity: 'DEL',
-    depCityFull: 'New Delhi (Indira Gandhi Int.)',
-    arrTime: '08:10',
-    arrCity: 'BOM',
-    arrCityFull: 'Mumbai (Chhatrapati Shivaji Int.)',
-    date: '15 Dec 2026',
-    price: '₹3,919',
-    priceRaw: 3919,
-    cancellationFee: 1000,
-    status: 'Confirmed',
-    tab: 'upcoming',
-    passenger: 'Rahul Sharma',
-    seat: '14A (Window)',
-    terminal: 'T3 → T2',
-    duration: '2h 10m (Direct)',
-    baggage: '15kg Check-in · 7kg Cabin',
-    pnr: 'FLY8K2M4',
-  },
-  {
-    id: 'tr-2',
-    airline: 'AIR INDIA',
-    airlineCode: 'AI',
-    logoBg: 'bg-[#E31837]',
-    flightNum: 'FLY3X9P1',
-    depTime: '10:30',
-    depCity: 'BLR',
-    depCityFull: 'Bengaluru (Kempegowda Int.)',
-    arrTime: '12:00',
-    arrCity: 'GOI',
-    arrCityFull: 'Goa (Dabolim Int.)',
-    date: '22 Dec 2026',
-    price: '₹5,499',
-    priceRaw: 5499,
-    cancellationFee: 1200,
-    status: 'Confirmed',
-    tab: 'upcoming',
-    passenger: 'Rahul Sharma',
-    seat: '04C (Aisle)',
-    terminal: 'T1 → T1',
-    duration: '1h 30m (Direct)',
-    baggage: '25kg Check-in · 7kg Cabin',
-    pnr: 'FLY3X9P1',
-  },
-  {
-    id: 'tr-3',
-    airline: 'VISTARA',
-    airlineCode: 'UK',
-    logoBg: 'bg-[#582C83]',
-    flightNum: 'FLY9A7R2',
-    depTime: '14:15',
-    depCity: 'DEL',
-    depCityFull: 'New Delhi (Indira Gandhi Int.)',
-    arrTime: '17:00',
-    arrCity: 'CCU',
-    arrCityFull: 'Kolkata (Netaji Subhash Chandra Bose)',
-    date: '10 Nov 2026',
-    price: '₹6,250',
-    priceRaw: 6250,
-    cancellationFee: 1500,
-    status: 'Completed',
-    tab: 'past',
-    passenger: 'Rahul Sharma',
-    seat: '09F (Window)',
-    terminal: 'T3 → T2',
-    duration: '2h 45m (Direct)',
-    baggage: '15kg Check-in · 7kg Cabin',
-    pnr: 'FLY9A7R2',
-  },
-  {
-    id: 'tr-4',
-    airline: 'AKASA AIR',
-    airlineCode: 'QP',
-    logoBg: 'bg-[#FF6600]',
-    flightNum: 'FLY5L8W3',
-    depTime: '07:45',
-    depCity: 'PNQ',
-    depCityFull: 'Pune (Lohegaon Int.)',
-    arrTime: '09:15',
-    arrCity: 'AMD',
-    arrCityFull: 'Ahmedabad (Sardar Vallabhbhai Patel)',
-    date: '28 Oct 2026',
-    price: '₹2,899',
-    priceRaw: 2899,
-    cancellationFee: 800,
-    status: 'Completed',
-    tab: 'past',
-    passenger: 'Rahul Sharma',
-    seat: '12B (Middle)',
-    terminal: 'T1 → T1',
-    duration: '1h 30m (Direct)',
-    baggage: '15kg Check-in · 7kg Cabin',
-    pnr: 'FLY5L8W3',
-  },
-  {
-    id: 'tr-5',
-    airline: 'SPICEJET',
-    airlineCode: 'SG',
-    logoBg: 'bg-[#ED1C24]',
-    flightNum: 'FLY1Q6Z9',
-    depTime: '18:30',
-    depCity: 'BOM',
-    depCityFull: 'Mumbai (Chhatrapati Shivaji Int.)',
-    arrTime: '20:45',
-    arrCity: 'DEL',
-    arrCityFull: 'New Delhi (Indira Gandhi Int.)',
-    date: '04 Oct 2026',
-    price: '₹4,120',
-    priceRaw: 4120,
-    cancellationFee: 500,
-    status: 'Cancelled',
-    tab: 'cancelled',
-    passenger: 'Rahul Sharma',
-    seat: '18A (Window)',
-    terminal: 'T1 → T3',
-    duration: '2h 15m (Direct)',
-    baggage: '15kg Check-in · 7kg Cabin',
-    pnr: 'FLY1Q6Z9',
-    refundAmount: '₹3,620',
-    paymentMethod: 'HDFC Card · XXXX 4521',
-    expectedRefundDate: '11 Oct 2026',
-    refundStep: 1,
-  },
-];
-
 export default function MyBookings() {
   const navigate = useNavigate();
-  const [trips, setTrips] = useState(INITIAL_TRIPS);
+  const [trips, setTrips] = useState([]);
   const [activeTab, setActiveTab] = useState('upcoming');
   const [expandedTripId, setExpandedTripId] = useState(null);
 
@@ -208,7 +76,7 @@ export default function MyBookings() {
     }
   };
 
-  // Fetch real bookings from DB and merge with mock trips
+  // Fetch real bookings from DB
   const fetchBookings = async () => {
     try {
       const res = await fetchAPI('/v2/bookings');
@@ -267,11 +135,7 @@ export default function MyBookings() {
           };
         }).filter(Boolean);
 
-        setTrips(prev => {
-          const existingIds = mapped.map(m => m.id);
-          const filteredPrev = INITIAL_TRIPS.filter(p => !existingIds.includes(p.id));
-          return [...mapped, ...filteredPrev];
-        });
+        setTrips(mapped);
       }
     } catch (err) {
       console.warn('Failed to fetch database bookings:', err.message);

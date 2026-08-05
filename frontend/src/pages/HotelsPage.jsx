@@ -94,9 +94,9 @@ export default function HotelsPage() {
               name: h.Name,
               location: `${h.City} · ${h.Country}`,
               locality: h.City,
-              rating: (Math.random() * (5.0 - 3.5) + 3.5).toFixed(1), // Mock rating since API doesn't provide user reviews
+              rating: (parseFloat(h.StarRating) || 4.0).toFixed(1),
               stars: parseInt(h.StarRating) || 3,
-              reviews: Math.floor(Math.random() * 1000) + 50,
+              reviews: parseInt(h.reviewCount) || 120,
               price: price,
               originalPrice: price * 1.2,
               discount: 20,

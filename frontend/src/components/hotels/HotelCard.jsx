@@ -1,13 +1,14 @@
 import { MapPin, Star, Heart, Waves, Sparkles, Wifi, GlassWater, Flower2, Palmtree, Dumbbell, Utensils, Tv } from 'lucide-react'
 
 export default function HotelCard({ hotel }) {
-  // Mock values to match Figma specifications if not provided in the hotel object
-  const originalPrice = hotel.originalPrice || 14000;
-  const discountPercent = hotel.discount || 30;
-  const taxes = hotel.taxes || 1176;
-  const reviewCount = hotel.reviews || "3,120";
-  const locationText = hotel.location || "Cavelossim · Goa";
-  const starsCount = hotel.stars || 5;
+  // Dynamic fallback formatting based on actual hotel properties
+  const price = hotel.price || 0;
+  const originalPrice = hotel.originalPrice || Math.round(price * 1.2);
+  const discountPercent = hotel.discount || (originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0);
+  const taxes = hotel.taxes || Math.round(price * 0.18);
+  const reviewCount = hotel.reviews || 120;
+  const locationText = hotel.location || `${hotel.locality || ''}`;
+  const starsCount = hotel.stars || 4;
 
   const getAmenityIcon = (amenity) => {
     const name = amenity.toLowerCase();

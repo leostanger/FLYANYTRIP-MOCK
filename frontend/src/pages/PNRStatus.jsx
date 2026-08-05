@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Plane, Clock, ShieldCheck, MapPin, AlertCircle, Info, Calendar } from 'lucide-react';
 import Navbar from '../components/common/Navbar';
 import Footer from '../components/common/Footer';
+import { fetchAPI } from '../services/api';
 
 export default function PNRStatus() {
   const [pnrInput, setPnrInput] = useState('');
@@ -9,45 +10,61 @@ export default function PNRStatus() {
   const [flightStatus, setFlightStatus] = useState(null);
   const [error, setError] = useState('');
 
-  const handlePnrSearch = (e) => {
+  const handlePnrSearch = async (e) => {
     e.preventDefault();
     if (!pnrInput) {
-      setError('Please enter a PNR code.');
+      setError('Please enter a PNR or Booking ID.');
       return;
     }
     setError('');
     setLoading(true);
     setFlightStatus(null);
 
-    // Mock search delay
-    setTimeout(() => {
-      setLoading(false);
+    try {
       const cleanPnr = pnrInput.trim().toUpperCase();
+      const res = await fetchAPI(`/booking/details/${encodeURIComponent(cleanPnr)}`);
 
-      if (cleanPnr.length < 4) {
-        setError('❌ PNR not found. Standard GDS references are 5 or 6 characters (alphanumeric).');
-      } else {
+      if (res?.success && res.data) {
+        const b = res.data;
+        const fb = b.flight_bookings || {};
+        const snapshot = fb.raw_response?.flightSnapshot || {};
+        const paxList = fb.raw_response?.passengers || [];
+        const firstPax = paxList[0] ? `${paxList[0].firstName} ${paxList[0].lastName}` : (b.users ? `${b.users.first_name || ''} ${b.users.last_name || ''}`.trim() : 'Traveler');
+
+        let depDateStr = 'N/A';
+        if (fb.departure_date) {
+          const dateObj = new Date(fb.departure_date);
+          depDateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
         setFlightStatus({
-          pnr: cleanPnr,
-          flightNumber: 'AI-805',
-          airline: 'Air India',
-          status: 'ON TIME',
-          statusCode: 'ontime',
-          from: 'Delhi (DEL)',
-          to: 'Bengaluru (BLR)',
-          fromTerminal: 'T3, Indira Gandhi Intl',
-          toTerminal: 'T2, Kempegowda Intl',
-          departureTime: '10:15 AM',
-          arrivalTime: '12:55 PM',
-          date: '02 Aug 2026',
-          passenger: 'John Doe',
-          seat: '12A',
-          gate: '24B',
-          baggageBelt: 'Belt 4',
-          duration: '2h 40m'
+          pnr: fb.pnr || b.booking_id || cleanPnr,
+          flightNumber: snapshot.flight || fb.pnr || 'Flight Details',
+          airline: snapshot.airline || fb.validating_airline || 'Airline',
+          status: String(fb.booking_status || b.status || 'CONFIRMED').toUpperCase(),
+          statusCode: String(fb.booking_status || b.status || 'confirmed').toLowerCase(),
+          from: fb.origin_airport || snapshot.from || 'Origin',
+          to: fb.destination_airport || snapshot.to || 'Destination',
+          fromTerminal: snapshot.fromTerminal || 'Terminal Standard',
+          toTerminal: snapshot.toTerminal || 'Terminal Standard',
+          departureTime: snapshot.time || '10:00 AM',
+          arrivalTime: snapshot.arrival || '12:00 PM',
+          date: depDateStr,
+          passenger: firstPax || 'Traveler',
+          seat: firstPax ? `${paxList[0]?.seat || 'Assigned at Check-in'}` : 'Standard',
+          gate: 'Announced at Airport',
+          baggageBelt: 'Check Airport Displays',
+          duration: snapshot.dur || 'Direct'
         });
+      } else {
+        setError(res?.message || '❌ PNR or Booking Reference not found. Please check your reference code and try again.');
       }
-    }, 1100);
+    } catch (err) {
+      console.error('PNR Lookup Error:', err.message);
+      setError(err.message || 'Failed to connect to live booking service. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
