@@ -7,3 +7,5 @@ build/
 npm-debug.log*
 .cache/
 prisma/migrations/dev/
+adivaha_debug.json
+

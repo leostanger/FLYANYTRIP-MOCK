@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Plane, Check, X, Shield, Info, ChevronRight } from "lucide-react";
+import { Plane, Check, X, Shield, Info, ChevronRight, Loader2 } from "lucide-react";
 
 export default function BookingSeat({ flight, passengers = [], onContinue, onSeatSelect }) {
   const paxList = passengers.length > 0 ? passengers : [
@@ -19,11 +19,13 @@ export default function BookingSeat({ flight, passengers = [], onContinue, onSea
   });
   const [liveSsrSeats, setLiveSsrSeats] = useState(null);
   const [isLiveSsr, setIsLiveSsr] = useState(false);
+  const [ssrLoading, setSsrLoading] = useState(false);
 
   useEffect(() => {
     const tId = flight?.traceId || flight?.raw?.traceId;
     const rIdx = flight?.resultIndex || flight?.raw?.resultIndex || flight?.id;
     if (tId && rIdx) {
+      setSsrLoading(true);
       const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
       fetch(`${baseUrl}/flights/ssr`, {
         method: 'POST',
@@ -38,7 +40,8 @@ export default function BookingSeat({ flight, passengers = [], onContinue, onSea
           setIsLiveSsr(true);
         }
       })
-      .catch(err => console.warn('Adivaha live SSR API notice:', err.message));
+      .catch(err => console.warn('Adivaha live SSR API notice:', err.message))
+      .finally(() => setSsrLoading(false));
     }
   }, [flight]);
   // Flatten live Adivaha SSR Seats into a quick lookup dictionary: { "12A": { isOccupied: false, price: 350 } }
@@ -243,6 +246,24 @@ export default function BookingSeat({ flight, passengers = [], onContinue, onSea
       </div>
 
       {/* ── 2. Interactive Vertical Airplane Fuselage Seat Grid ── */}
+      {/* SSR Loading notice — shown while Adivaha fetches live seat availability */}
+      {ssrLoading && (
+        <div className="w-full bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3 text-amber-700">
+          <Loader2 size={16} className="animate-spin flex-shrink-0" />
+          <span className="font-['Quicksand'] text-[13px] font-semibold">
+            Fetching live seat availability from airline GDS… please wait.
+          </span>
+        </div>
+      )}
+      {/* No SSR data notice — shown when SSR fetch completed but no seats returned */}
+      {!ssrLoading && !isLiveSsr && (
+        <div className="w-full bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-3 text-blue-700">
+          <Info size={16} className="flex-shrink-0" />
+          <span className="font-['Quicksand'] text-[13px] font-semibold">
+            Live seat map unavailable for this flight. You can skip seat selection or pick any seat below — your actual seat will be auto-assigned by the airline.
+          </span>
+        </div>
+      )}
       <div className="w-full bg-white border border-[#eaeaea] border-[1.157px] rounded-[13.88px] p-5 md:p-8 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col items-center">
         
         {/* Airplane Cockpit Nose Cone */}
@@ -419,7 +440,7 @@ export default function BookingSeat({ flight, passengers = [], onContinue, onSea
       </div>
 
       {/* ── 3. Submit CTA Button ── */}
-      <div className="w-full bg-white border border-[#eaeaea] border-[1.157px] rounded-[13.88px] p-4 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex items-center justify-between">
+      <div className="w-full bg-white border border-[#eaeaea] border-[1.157px] rounded-[13.88px] p-4 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex items-center justify-between gap-3">
         <div>
           <span className="font-['Quicksand'] text-[12px] text-gray-500 font-semibold block">
             Total Seat Charge
@@ -429,13 +450,27 @@ export default function BookingSeat({ flight, passengers = [], onContinue, onSea
           </span>
         </div>
 
-        <button
-          type="submit"
-          className="bg-[#F12B19] hover:bg-red-700 text-white font-['Quicksand'] font-bold text-[14.5px] px-8 py-3 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-2"
-        >
-          <span>Proceed to Personalization</span>
-          <span className="text-base leading-none">&rarr;</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Skip seat selection — passenger gets airline auto-assigned seat */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onSeatSelect) onSeatSelect(null, 0, {});
+              onContinue();
+            }}
+            className="border border-gray-300 text-gray-600 hover:bg-gray-50 font-['Quicksand'] font-bold text-[13px] px-5 py-3 rounded-xl transition-all cursor-pointer active:scale-95"
+          >
+            Skip Seat
+          </button>
+
+          <button
+            type="submit"
+            className="bg-[#F12B19] hover:bg-red-700 text-white font-['Quicksand'] font-bold text-[14.5px] px-8 py-3 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-2"
+          >
+            <span>Proceed</span>
+            <span className="text-base leading-none">&rarr;</span>
+          </button>
+        </div>
       </div>
 
     </form>
