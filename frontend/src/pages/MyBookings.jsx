@@ -263,12 +263,9 @@ export default function MyBookings() {
   };
 
   const handleDownloadTicket = (trip) => {
-    if (trip.isRealBooking) {
-      showToast(`Generating and downloading ticket PDF for PNR: ${trip.pnr}...`);
-      window.open(`http://localhost:5000/api/booking/invoice/${trip.id}/download`, '_blank');
-    } else {
-      showToast(`Downloading mock e-Ticket for ${trip.flightNum} (${trip.depCity} → ${trip.arrCity})...`);
-    }
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+    showToast(`Generating and downloading ticket PDF for ${trip.pnr || trip.flightNum}...`);
+    window.open(`${API_BASE_URL}/booking/invoice/${trip.id}/download`, '_blank');
   };
 
   // Handle Esc key close

@@ -128,7 +128,7 @@ exports.confirmBooking = async (req, res, next) => {
         const departureDate = new Date(departureDateStr);
         const fareDetails = flightSnapshot?.Fare || flightSnapshot?.raw?.Fare || {};
 
-        const enrichedPassengers = (passengers || []).map((p, idx) => {
+        let enrichedPassengers = (passengers || []).map((p, idx) => {
             const title = (p.Title || "Mr").replace(/\./g, "").trim();
 
             let gender = 1;
@@ -233,26 +233,27 @@ exports.confirmBooking = async (req, res, next) => {
                 ContactNo: contactNo,
                 Email: email,
                 IsLeadPax: isLeadPax,
-                GSTCompanyAddress: null,
-                GSTCompanyContactNumber: null,
-                GSTCompanyName: null,
-                GSTNumber: null,
-                GSTCompanyEmail: null,
-                Baggage: [],
-                MealDynamic: [],
-                SeatDynamic: [],
                 Fare: passengerFare
             };
 
-            if (isDomestic === "No") {
-                passengerObj.PassportNo = p.PassportNo || "P1234567";
-                passengerObj.PassportExpiry = passportExpiryStr;
-            } else {
-                passengerObj.PassportNo = "";
-                passengerObj.PassportExpiry = "";
+            if (p.GSTNumber || p.GSTCompanyName) {
+                passengerObj.GSTCompanyAddress = p.GSTCompanyAddress || "";
+                passengerObj.GSTCompanyContactNumber = p.GSTCompanyContactNumber || "";
+                passengerObj.GSTCompanyName = p.GSTCompanyName || "";
+                passengerObj.GSTNumber = p.GSTNumber || "";
+                passengerObj.GSTCompanyEmail = p.GSTCompanyEmail || "";
             }
 
-            if (p.Seat && p.Seat.Code && p.Seat.Code !== "Auto-assigned") {
+            if (p.Baggage && p.Baggage.length > 0) passengerObj.Baggage = p.Baggage;
+            if (p.MealDynamic && p.MealDynamic.length > 0) passengerObj.MealDynamic = p.MealDynamic;
+            if (p.SeatDynamic && p.SeatDynamic.length > 0) passengerObj.SeatDynamic = p.SeatDynamic;
+
+            if (isDomestic === "No") {
+                passengerObj.PassportNo = p.PassportNo || "P1234567";
+                passengerObj.PassportExpiry = passportExpiryStr || "2030-01-01T00:00:00";
+            }
+
+            if (p.Seat && p.Seat.Code && p.Seat.Code !== "Auto-assigned" && p.SeatDynamic && p.SeatDynamic.length > 0) {
                 passengerObj.Seat = p.Seat;
             }
 
@@ -274,6 +275,9 @@ exports.confirmBooking = async (req, res, next) => {
             try {
                 // Revalidate with FareQuote first to obtain the mandatory updated ResultIndex
                 let activeResultIndex = resultIndex;
+                let activeFare = null;
+                let activeFareBreakdown = null;
+
                 try {
                     console.log('Revalidating fare with FareQuote before booking...');
                     const quoteRes = await AdivahaFlightService.getFlightFareQuote({
@@ -283,15 +287,66 @@ exports.confirmBooking = async (req, res, next) => {
                     });
 
                     const quoteResponseData = quoteRes?.responseData?.Response || quoteRes?.Response || quoteRes;
-                    if (quoteResponseData?.Results?.ResultIndex) {
-                        activeResultIndex = quoteResponseData.Results.ResultIndex;
-                        console.log('Obtained updated ResultIndex from FareQuote:', activeResultIndex);
+                    const resultsObj = Array.isArray(quoteResponseData?.Results) ? quoteResponseData.Results[0] : quoteResponseData?.Results;
+                    
+                    if (resultsObj) {
+                        if (resultsObj.ResultIndex) {
+                            activeResultIndex = resultsObj.ResultIndex;
+                            console.log('Obtained updated ResultIndex from FareQuote:', activeResultIndex);
+                        }
+                        activeFare = resultsObj.Fare;
+                        activeFareBreakdown = resultsObj.FareBreakdown;
                     } else if (quoteResponseData?.ResultIndex) {
                         activeResultIndex = quoteResponseData.ResultIndex;
-                        console.log('Obtained updated ResultIndex from FareQuote:', activeResultIndex);
+                        console.log('Obtained updated ResultIndex from FareQuote (fallback):', activeResultIndex);
+                        activeFare = quoteResponseData.Fare;
+                        activeFareBreakdown = quoteResponseData.FareBreakdown;
                     }
                 } catch (quoteErr) {
                     console.warn('FareQuote revalidation failed, using search resultIndex:', quoteErr.message);
+                }
+
+                // Inject the updated fare into the Passengers array to prevent 7606 Fare Validation errors
+                if (activeFare) {
+                    const paxCount = enrichedPassengers.length || 1;
+                    enrichedPassengers = enrichedPassengers.map(p => {
+                        let fBreakdown = null;
+                        if (Array.isArray(activeFareBreakdown)) {
+                            fBreakdown = activeFareBreakdown.find(fb => Number(fb.PassengerType) === Number(p.PaxType));
+                        } else if (activeFareBreakdown && Number(activeFareBreakdown.PassengerType) === Number(p.PaxType)) {
+                            fBreakdown = activeFareBreakdown;
+                        }
+                        
+                        if (!fBreakdown) {
+                            fBreakdown = {
+                                BaseFare: Math.round((activeFare.BaseFare || 0) / paxCount),
+                                Tax: Math.round((activeFare.Tax || 0) / paxCount),
+                                YQTax: Math.round((activeFare.YQTax || 0) / paxCount),
+                                PublishedFare: Math.round((activeFare.PublishedFare || 0) / paxCount),
+                                OfferedFare: Math.round((activeFare.OfferedFare || 0) / paxCount),
+                                OtherCharges: Math.round((activeFare.OtherCharges || 0) / paxCount),
+                            };
+                        }
+                        return {
+                            ...p,
+                            Fare: {
+                                Currency: activeFare.Currency || "INR",
+                                BaseFare: fBreakdown.BaseFare || Math.round((activeFare.BaseFare || 0) / paxCount),
+                                Tax: fBreakdown.Tax || Math.round((activeFare.Tax || 0) / paxCount),
+                                YQTax: fBreakdown.YQTax || Math.round((activeFare.YQTax || 0) / paxCount),
+                                PublishedFare: fBreakdown.PublishedFare || Math.round((activeFare.PublishedFare || 0) / paxCount),
+                                OfferedFare: fBreakdown.OfferedFare || Math.round((activeFare.OfferedFare || 0) / paxCount),
+                                OtherCharges: fBreakdown.OtherCharges || Math.round((activeFare.OtherCharges || 0) / paxCount),
+                                Discount: fBreakdown.Discount || Math.round((activeFare.Discount || 0) / paxCount),
+                                TdsOnCommission: fBreakdown.TdsOnCommission || Math.round((activeFare.TdsOnCommission || 0) / paxCount),
+                                TdsOnPLB: fBreakdown.TdsOnPLB || Math.round((activeFare.TdsOnPLB || 0) / paxCount),
+                                TdsOnIncentive: fBreakdown.TdsOnIncentive || Math.round((activeFare.TdsOnIncentive || 0) / paxCount),
+                                AdditionalTxnFeePub: fBreakdown.AdditionalTxnFeePub || Math.round((activeFare.AdditionalTxnFeePub || 0) / paxCount),
+                                AdditionalTxnFeeOfrd: fBreakdown.AdditionalTxnFeeOfrd || Math.round((activeFare.AdditionalTxnFeeOfrd || 0) / paxCount),
+                                ServiceFee: fBreakdown.ServiceFee || Math.round((activeFare.ServiceFee || 0) / paxCount)
+                            }
+                        };
+                    });
                 }
 
                 const adivahaPayload = {
@@ -331,10 +386,24 @@ exports.confirmBooking = async (req, res, next) => {
                 }
             } catch (adivahaError) {
                 console.error('Adivaha booking request error:', adivahaError);
+                
+                try {
+                    const fs = require('fs');
+                    const path = require('path');
+                    fs.writeFileSync(path.join(__dirname, '../../adivaha_error_debug.json'), JSON.stringify({
+                        timestamp: new Date().toISOString(),
+                        message: adivahaError.message,
+                        response: adivahaError.response?.data || null,
+                        stack: adivahaError.stack
+                    }, null, 2));
+                } catch(e) {
+                    console.warn('Debug error write failed:', e.message);
+                }
+
                 return res.status(400).json({
                     success: false,
                     message: 'Adivaha Booking Request Failed',
-                    error: adivahaError.message || adivahaError
+                    error: adivahaError.response?.data || adivahaError.message || adivahaError
                 });
             }
         }

@@ -4,7 +4,6 @@ import Navbar from '../components/common/Navbar';
 import HeroSection from '../components/hero/HeroSection';
 import TrustBar from '../components/common/TrustBar';
 import PopularDestinations from '../components/home/PopularDestinations';
-import PopularFlightRoutes from '../components/home/PopularFlightRoutes';
 import TopHotelDeals from '../components/home/TopHotelDeals';
 import WhyChooseUs from '../components/home/WhyChooseUs';
 import Testimonials from '../components/home/Testimonials';
@@ -20,7 +19,6 @@ const Home = () => {
         <HeroSection />
         <TrustBar />
         <PopularDestinations />
-        <PopularFlightRoutes />
         <TopHotelDeals />
         <WhyChooseUs />
         <Testimonials />
