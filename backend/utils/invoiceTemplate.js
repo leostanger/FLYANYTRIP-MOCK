@@ -46,8 +46,8 @@ const getCityName = (code) => {
 
 const getInvoiceDocDefinition = (bookingData = {}) => {
     const {
-        pnr = "VG2434",
-        bookingId = "FAT-100000",
+        pnr = "",
+        bookingId = "",
         bookingDate,
         passengers = [],
         origin = "DEL",
@@ -79,8 +79,8 @@ const getInvoiceDocDefinition = (bookingData = {}) => {
         seatLabel = "12A"
     } = bookingData;
 
-    const invNum = bookingId || `FAT-${Math.floor(Math.random() * 900000 + 100000)}`;
-    const pnrCode = (pnr || "VG2434").toUpperCase();
+    const invNum = bookingId || `INV-${Math.floor(Math.random() * 900000 + 100000)}`;
+    const pnrCode = (pnr || "N/A").toUpperCase();
     const dateStr = bookingDate || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
     const flightDateStr = departureDate || dateStr;
 

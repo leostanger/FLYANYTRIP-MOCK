@@ -363,12 +363,14 @@ exports.confirmBooking = async (req, res, next) => {
 
         const adivahaStatusCode = adivahaRes?.Status || adivahaRes?.status;
 
-        // If Adivaha returns real PNR, use real PNR. Otherwise, if wallet balance is 0 INR in test mode, fallback to Staging PNR
+        // STRICT LIVE DATA ENFORCEMENT: Fail the booking if no PNR is returned or if the API status is failed.
         if (!pnr || adivahaStatusCode === 7606 || adivahaStatusCode === '7606' || isFailedStatus) {
-            console.warn(`⚠️ Adivaha API Notice (Status ${adivahaStatusCode || 'Failed'}): Live wallet balance 0 INR or session notice. Issuing Staging GDS PNR...`);
-            pnr = 'FAT' + Math.random().toString(36).substring(2, 7).toUpperCase();
-            providerBookingId = 'ADV-TEST-' + Date.now();
-            ticketStatus = 'CONFIRMED';
+            console.error(`🚨 Booking Failed: Adivaha API did not return a valid PNR or returned a failure status (${adivahaStatusCode || 'Failed'}).`);
+            return res.status(400).json({
+                success: false,
+                message: 'Flight booking failed at the provider (Adivaha). Please try again or check provider logs.',
+                error: adivahaRes
+            });
         }
 
         // 1.5. For Non-LCC flights, trigger step 2: Ticketing (issueNonLccTicket)
