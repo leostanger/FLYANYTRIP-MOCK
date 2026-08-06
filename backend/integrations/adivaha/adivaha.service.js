@@ -435,10 +435,12 @@ class AdivahaFlightService {
   static async getFareRule(payload) {
     try {
       const { TraceId, ResultIndex, EndUserIp } = payload;
+      const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
+      const cleanResultIndex = String(ResultIndex || '').trim().replace(/ /g, '+');
       const apiPayload = {
         action: "fareRule",
-        ResultIndex,
-        TraceId,
+        ResultIndex: cleanResultIndex,
+        TraceId: cleanTraceId,
         EndUserIp
       };
       const response = await adivahaClient.post('/', apiPayload);
@@ -452,10 +454,12 @@ class AdivahaFlightService {
   static async getFlightFareQuote(payload) {
     try {
       const { TraceId, ResultIndex, EndUserIp } = payload;
+      const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
+      const cleanResultIndex = String(ResultIndex || '').trim().replace(/ /g, '+');
       const apiPayload = {
         action: "fareQuote",
-        ResultIndex,
-        TraceId,
+        ResultIndex: cleanResultIndex,
+        TraceId: cleanTraceId,
         EndUserIp
       };
       const response = await adivahaClient.post('/', apiPayload);
@@ -561,10 +565,13 @@ class AdivahaFlightService {
         IsDomesticReturn
       } = bookingPayload;
 
+      const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
+      const cleanResultIndex = String(ResultIndex || '').trim().replace(/ /g, '+');
+
       const apiPayload = {
         action: isLCC ? "ticketForLcc" : "flightBook",
-        TraceId,
-        ResultIndex,
+        TraceId: cleanTraceId,
+        ResultIndex: cleanResultIndex,
         IsLCC: isLCC ? "1" : "0",
         isoneway: isoneway || "Yes",
         isDomestic: isDomestic || "Yes",

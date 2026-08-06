@@ -468,6 +468,21 @@ export default function BookingInfo({ onContinue, initialContact, initialPasseng
           </div>
         ))}
 
+        {/* Traveler Count Mismatch Notice */}
+        {passengers.length > (initialPassengers?.length || 1) && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-900 font-medium space-y-1">
+            <div className="flex items-start gap-2">
+              <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-900">Traveler Count Change ({passengers.length} travelers vs {initialPassengers?.length || 1} searched)</p>
+                <p className="mt-0.5 leading-relaxed text-[#555]">
+                  Airlines lock seat inventory for the exact number of travelers selected on the search page ({initialPassengers?.length || 1}). To book for <strong>{passengers.length} travelers</strong>, please select <strong>{passengers.length} Travelers</strong> on the flight search bar so Adivaha quotes live seats for all travelers.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Add Passenger CTA */}
         <button
           type="button"

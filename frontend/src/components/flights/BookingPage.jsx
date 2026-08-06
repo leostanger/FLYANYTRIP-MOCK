@@ -364,24 +364,26 @@ export default function BookingPage() {
         setBookingData(finalBooking);
         goToStep(5);
       } else {
-        // Check if session expired (7606)
-        if (resJson.sessionExpired) {
+        if (resJson.mismatchPax) {
+          alert("⚠️ Traveler Count Notice\n\n" + resJson.message);
+        } else if (resJson.sessionExpired) {
           alert("⏰ Session Expired\n\n" + (resJson.message || "Your booking session has expired. Please search again.") + "\n\nYou will be taken back to the search page.");
           navigate("/flights");
         } else {
-          alert("Booking failed: " + (resJson.message || resJson.error?.ErrorMessage || "Unknown error. Please try again."));
+          alert("Booking notice: " + (resJson.message || resJson.error?.ErrorMessage || "Unknown error. Please try again."));
         }
       }
     } catch (err) {
       console.error("Payment confirmation error:", err);
-      // Check if the error body includes sessionExpired flag (7606 from Adivaha)
-      if (err.responseBody?.sessionExpired || err.message?.toLowerCase().includes("session") || err.message?.toLowerCase().includes("expired")) {
+      if (err.responseBody?.mismatchPax) {
+        alert("⚠️ Traveler Count Notice\n\n" + err.responseBody.message);
+      } else if (err.responseBody?.sessionExpired) {
         alert("⏰ Session Expired\n\n" + (err.responseBody?.message || err.message || "Your booking session has expired.") + "\n\nYou will be taken back to the search page.");
         navigate("/flights");
       } else if (err.message?.includes("fetch") || err.message?.includes("Failed to fetch")) {
         alert("Connection error. Please ensure the server is running and try again.");
       } else {
-        alert("Booking error: " + (err.responseBody?.message || err.message));
+        alert("Booking notice: " + (err.responseBody?.message || err.message));
       }
     } finally {
       setIsConfirming(false);
