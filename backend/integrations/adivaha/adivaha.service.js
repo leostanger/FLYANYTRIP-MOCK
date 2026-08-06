@@ -568,8 +568,12 @@ class AdivahaFlightService {
       const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
       const cleanResultIndex = String(ResultIndex || '').trim().replace(/ /g, '+');
 
+      const mode = bookingPayload.mode || process.env.ADIVAHA_MODE || "LIVE";
+      const customerIp = bookingPayload.customerIp || bookingPayload.CustomerIp;
+
       const apiPayload = {
         action: isLCC ? "ticketForLcc" : "flightBook",
+        mode,
         TraceId: cleanTraceId,
         ResultIndex: cleanResultIndex,
         IsLCC: isLCC ? "1" : "0",
@@ -580,7 +584,12 @@ class AdivahaFlightService {
         ContactDetails
       };
 
-      const response = await adivahaClient.post(`/?action=${isLCC ? 'ticketForLcc' : 'flightBook'}`, apiPayload);
+      if (bookingPayload.IsPriceChangeAccepted !== undefined) {
+        apiPayload.IsPriceChangeAccepted = bookingPayload.IsPriceChangeAccepted;
+      }
+
+      const reqHeaders = customerIp ? { headers: { 'Customer-IP': customerIp } } : {};
+      const response = await adivahaClient.post(`/?action=${isLCC ? 'ticketForLcc' : 'flightBook'}`, apiPayload, reqHeaders);
       console.log('ADIVAHA REQUEST PAYLOAD:', JSON.stringify(apiPayload, null, 2));
       console.log('ADIVAHA RESPONSE DATA:', JSON.stringify(response.data, null, 2));
       return response.data;
@@ -606,11 +615,16 @@ class AdivahaFlightService {
         isoneway,
         isDomestic,
         IsDomesticReturn,
-        Passengers
+        Passengers,
+        customerIp,
+        IsPriceChangeAccepted
       } = ticketingPayload;
+
+      const mode = ticketingPayload.mode || process.env.ADIVAHA_MODE || "LIVE";
 
       const apiPayload = {
         action: "ticket",
+        mode,
         PNR,
         BookingId,
         order_id,
@@ -622,7 +636,12 @@ class AdivahaFlightService {
         Passengers
       };
 
-      const response = await adivahaClient.post('/?action=ticket', apiPayload);
+      if (IsPriceChangeAccepted !== undefined) {
+        apiPayload.IsPriceChangeAccepted = IsPriceChangeAccepted;
+      }
+
+      const reqHeaders = customerIp ? { headers: { 'Customer-IP': customerIp } } : {};
+      const response = await adivahaClient.post('/?action=ticket', apiPayload, reqHeaders);
       return response.data;
     } catch (error) {
       console.error('Adivaha ticket Error:', error.response?.data || error.message);
@@ -790,6 +809,58 @@ class AdivahaFlightService {
       return response.data;
     } catch (error) {
       console.error('Adivaha createManualToken Error:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get Fare Rule / Cancellation Restrictions for a flight
+   */
+  static async getFareRule(payload) {
+    try {
+      const { TraceId, ResultIndex, customerIp } = payload;
+      const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
+      const cleanResultIndex = String(ResultIndex || '').trim().replace(/ /g, '+');
+      const mode = payload.mode || process.env.ADIVAHA_MODE || "LIVE";
+
+      const apiPayload = {
+        action: "fareRule",
+        mode,
+        TraceId: cleanTraceId,
+        ResultIndex: cleanResultIndex
+      };
+
+      const reqHeaders = customerIp ? { headers: { 'Customer-IP': customerIp } } : {};
+      const response = await adivahaClient.post('/?action=fareRule', apiPayload, reqHeaders);
+      return response.data;
+    } catch (error) {
+      console.error('Adivaha getFareRule Error:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get SSR (Seats, Meals, Baggage) options for a flight
+   */
+  static async getSSRDetails(payload) {
+    try {
+      const { TraceId, ResultIndex, customerIp } = payload;
+      const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
+      const cleanResultIndex = String(ResultIndex || '').trim().replace(/ /g, '+');
+      const mode = payload.mode || process.env.ADIVAHA_MODE || "LIVE";
+
+      const apiPayload = {
+        action: "SSR",
+        mode,
+        TraceId: cleanTraceId,
+        ResultIndex: cleanResultIndex
+      };
+
+      const reqHeaders = customerIp ? { headers: { 'Customer-IP': customerIp } } : {};
+      const response = await adivahaClient.post('/?action=SSR', apiPayload, reqHeaders);
+      return response.data;
+    } catch (error) {
+      console.error('Adivaha getSSRDetails Error:', error.response?.data || error.message);
       throw error;
     }
   }

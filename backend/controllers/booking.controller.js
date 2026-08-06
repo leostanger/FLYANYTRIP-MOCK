@@ -442,15 +442,49 @@ exports.confirmBooking = async (req, res, next) => {
                     let loopTicketStatus = responseData?.TicketStatus || responseData?.Response?.TicketStatus || (isLccNormalized ? 'TICKETED' : 'BOOKED');
                     let ticketingRes = null;
 
-                    const adivahaStatusCode = adivahaRes?.Status || adivahaRes?.status;
-                    const isSessionExpired = adivahaStatusCode === 7606 || adivahaStatusCode === '7606';
+                    const customerIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.socket?.remoteAddress;
+                    adivahaPayload.customerIp = customerIp;
 
-                    const hasPnr = !!loopPnr;
-                    const hasBookingId = !!loopProviderBookingId;
-                    const hasOrderId = responseData?.OrderId || responseData?.Response?.OrderId || adivahaRes?.order_id;
+                    let adivahaStatusCode = adivahaRes?.Status || adivahaRes?.status;
+                    let isSessionExpired = adivahaStatusCode === 7606 || adivahaStatusCode === '7606';
 
-                    const isFailedStatus = !hasPnr && !hasBookingId && !hasOrderId;
-                    const isValidBooking = isLccNormalized ? hasPnr : (hasBookingId || hasPnr);
+                    let hasPnr = !!loopPnr;
+                    let hasBookingId = !!loopProviderBookingId;
+                    let hasOrderId = responseData?.OrderId || responseData?.Response?.OrderId || adivahaRes?.order_id;
+
+                    let isFailedStatus = !hasPnr && !hasBookingId && !hasOrderId;
+                    let isValidBooking = isLccNormalized ? hasPnr : (hasBookingId || hasPnr);
+
+                    // Section 9 & 14 Auto-Recovery: If Adivaha returns Status 7605 (Price Change), retry once with IsPriceChangeAccepted: true
+                    if ((!isValidBooking || isFailedStatus) && (adivahaStatusCode === 7605 || adivahaStatusCode === '7605')) {
+                        console.warn(`💡 Adivaha returned Status 7605 (Price Change). Re-attempting booking with IsPriceChangeAccepted: true...`);
+                        try {
+                            const retryRes = await AdivahaFlightService.bookFlight({
+                                ...adivahaPayload,
+                                IsPriceChangeAccepted: true,
+                                customerIp
+                            });
+                            if (retryRes) {
+                                const retryData = retryRes?.responseData?.Response || retryRes?.Response || retryRes;
+                                const retryPnr = retryData?.PNR || retryData?.Response?.PNR || (retryData?.BookingId ? String(retryData.BookingId) : null);
+                                if (retryPnr) {
+                                    adivahaRes = retryRes;
+                                    responseData = retryData;
+                                    loopPnr = retryPnr;
+                                    loopProviderBookingId = retryData?.BookingId || retryData?.Response?.BookingId || loopPnr;
+                                    adivahaStatusCode = retryRes?.Status || retryRes?.status;
+                                    isSessionExpired = false;
+                                    hasPnr = true;
+                                    hasBookingId = !!loopProviderBookingId;
+                                    isFailedStatus = false;
+                                    isValidBooking = true;
+                                    console.log(`✅ Price-Change Auto-Recovery Successful! New PNR: ${loopPnr}`);
+                                }
+                            }
+                        } catch (priceChangeErr) {
+                            console.warn('Price-Change Auto-Recovery attempt failed:', priceChangeErr.message);
+                        }
+                    }
 
                     if (!isValidBooking || isSessionExpired || isFailedStatus) {
                         console.error(`🚨 Booking Failed: Adivaha did not return a valid PNR. Status: ${adivahaStatusCode || 'Failed'}, Message: ${deepErrorMessage || 'Unknown'}`);
