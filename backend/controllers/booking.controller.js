@@ -142,12 +142,17 @@ exports.confirmBooking = async (req, res, next) => {
             }
 
             let paxType = p.PaxType ? Number(p.PaxType) : 1;
-            let dobStr = parseDateString(p.DateOfBirth || "1990-01-01");
+            let defaultDob = "1995-01-01";
+            if (paxType === 2) defaultDob = "2020-01-01";
+            else if (paxType === 3) defaultDob = "2025-06-01";
+
+            let dobStr = parseDateString(p.DateOfBirth || defaultDob);
             if (dobStr.includes("T")) {
                 dobStr = dobStr.split("T")[0] + "T00:00:00";
             } else {
                 dobStr = dobStr + "T00:00:00";
             }
+
 
             try {
                 const dob = new Date(dobStr);

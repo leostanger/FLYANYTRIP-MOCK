@@ -192,6 +192,7 @@ export default function ResultPage() {
     const tripType = searchParams.get("tripType") || "one-way";
     const adults = searchParams.get("adults") || "1";
     const children = searchParams.get("children") || "0";
+    const infants = searchParams.get("infants") || searchParams.get("infant") || "0";
     const cabinClass = searchParams.get("cabinClass") || "Economy";
 
     const fetchLiveSearch = async () => {
@@ -223,7 +224,7 @@ export default function ResultPage() {
             segments,
             adults: parseInt(adults, 10) || 1,
             children: parseInt(children, 10) || 0,
-            infants: 0,
+            infants: parseInt(infants, 10) || 0,
             cabinClass
           });
         } else {
@@ -231,8 +232,9 @@ export default function ResultPage() {
           destination = searchParams.get("destination") || "BOM";
           departureDate = searchParams.get("departureDate") || new Date().toISOString().split("T")[0];
           const returnDate = searchParams.get("returnDate") || "";
-          response = await flightService.searchFlights({ origin, destination, departureDate, adults, children, cabinClass, tripType, returnDate });
+          response = await flightService.searchFlights({ origin, destination, departureDate, adults, children, infants, cabinClass, tripType, returnDate });
         }
+
 
         let rawList = [];
         const responseTraceId = response?.traceId || response?.data?.traceId || null;
@@ -402,6 +404,7 @@ export default function ResultPage() {
         searchContext: {
           adults: parseInt(searchParams.get("adults") || "1", 10),
           children: parseInt(searchParams.get("children") || "0", 10),
+          infants: parseInt(searchParams.get("infants") || searchParams.get("infant") || "0", 10),
           cabinClass: searchParams.get("cabinClass") || "Economy",
           tripType: searchParams.get("tripType") || "one-way",
           departureDate: searchParams.get("departureDate") || "",
@@ -411,6 +414,7 @@ export default function ResultPage() {
       }
     });
   };
+
 
   const containerVariants = {
     hidden: { opacity: 0 },

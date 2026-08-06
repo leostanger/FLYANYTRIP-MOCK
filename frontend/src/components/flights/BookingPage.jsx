@@ -112,6 +112,7 @@ export default function BookingPage() {
   const searchContext = getInitialSearchContext();
   const searchAdults = Math.max(1, parseInt(searchContext.adults || 1, 10));
   const searchChildren = Math.max(0, parseInt(searchContext.children || 0, 10));
+  const searchInfants = Math.max(0, parseInt(searchContext.infants || searchContext.infant || 0, 10));
   const cabinClass = searchContext.cabinClass || "Economy";
 
   // Stepper state: 1 = Info, 2 = Seat, 3 = Personalize, 4 = Payment
@@ -146,17 +147,21 @@ export default function BookingPage() {
   }, [isConfirming]);
 
   // Passenger & Contact info state from Step 1
-  // Auto-populate passenger slots based on search query (adults + children)
+  // Auto-populate passenger slots based on search query (adults + children + infants)
   const buildInitialPassengers = () => {
     const paxList = [];
     for (let i = 0; i < searchAdults; i++) {
-      paxList.push({ id: i + 1, title: "Mr.", firstName: "", lastName: "", dob: "", nationality: "Indian", type: "Adult" });
+      paxList.push({ id: paxList.length + 1, title: "Mr.", firstName: "", lastName: "", dob: "", nationality: "Indian", type: "Adult" });
     }
     for (let i = 0; i < searchChildren; i++) {
-      paxList.push({ id: searchAdults + i + 1, title: "Master", firstName: "", lastName: "", dob: "", nationality: "Indian", type: "Child" });
+      paxList.push({ id: paxList.length + 1, title: "Master", firstName: "", lastName: "", dob: "", nationality: "Indian", type: "Child" });
+    }
+    for (let i = 0; i < searchInfants; i++) {
+      paxList.push({ id: paxList.length + 1, title: "Master", firstName: "", lastName: "", dob: "", nationality: "Indian", type: "Infant" });
     }
     return paxList.length > 0 ? paxList : [{ id: 1, title: "Mr.", firstName: "", lastName: "", dob: "", nationality: "Indian", type: "Adult" }];
   };
+
   const [contactDetails, setContactDetails] = useState({ mobile: "", email: "" });
   const [passengers, setPassengers] = useState(() => buildInitialPassengers());
 
