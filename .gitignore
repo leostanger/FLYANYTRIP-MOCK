@@ -8,4 +8,11 @@ npm-debug.log*
 .cache/
 prisma/migrations/dev/
 adivaha_debug.json
+*_log.json
+*_test.json
+adivaha_error_debug.json
+booking_response.json
+test_book.js
+test_farequote.js
+test.js
 

@@ -9,7 +9,7 @@ import React, { useState } from "react";
 import { Plane, ChevronDown, ChevronUp, Luggage, ShieldCheck } from "lucide-react";
 import FlightDetailsContainer from "./FlightDetailsContainer";
 
-export default function Card({ flight, onSelect }) {
+export default function Card({ flight, onSelect, isSelectMode, isSelected }) {
   const [showDetails, setShowDetails] = useState(false);
 
   const priceVal = flight?.price ? String(flight.price) : "3,499";
@@ -18,7 +18,7 @@ export default function Card({ flight, onSelect }) {
   const isCheapest = Boolean(flight?.badge?.toLowerCase()?.includes("cheapest"));
 
   return (
-    <div className="w-full bg-white border border-[#eaeaea] border-[1.157px] rounded-[13.88px] shadow-[0_2px_12px_rgba(0,0,0,0.02)] select-none font-['Quicksand'] transition-all hover:shadow-md text-left overflow-hidden">
+    <div className={`w-full bg-white border border-[1.157px] rounded-[13.88px] shadow-[0_2px_12px_rgba(0,0,0,0.02)] select-none font-['Quicksand'] transition-all hover:shadow-md text-left overflow-hidden ${isSelected ? 'border-[#F12B19] bg-[#FFF8F8] shadow-md' : 'border-[#eaeaea]'}`}>
       
       {/* Primary Row Details */}
       <div className="p-5 md:px-[23.13px] md:py-[20px] flex flex-col md:flex-row items-start md:items-center justify-between gap-5 md:gap-4">
@@ -97,13 +97,22 @@ export default function Card({ flight, onSelect }) {
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={onSelect}
-            className="bg-[#F12B19] hover:bg-red-700 text-white font-['Quicksand'] font-bold text-[14px] px-7 py-2.5 rounded-lg shadow-sm transition-all duration-150 cursor-pointer active:scale-95 flex-shrink-0"
-          >
-            Select
-          </button>
+          {isSelectMode ? (
+            <div 
+              onClick={onSelect}
+              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer flex-shrink-0 transition-colors ${isSelected ? 'border-[#F12B19] bg-[#F12B19]' : 'border-gray-300'}`}
+            >
+              {isSelected && <div className="w-2.5 h-2.5 bg-white rounded-full" />}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onSelect}
+              className="bg-[#F12B19] hover:bg-red-700 text-white font-['Quicksand'] font-bold text-[14px] px-7 py-2.5 rounded-lg shadow-sm transition-all duration-150 cursor-pointer active:scale-95 flex-shrink-0"
+            >
+              Select
+            </button>
+          )}
         </div>
 
       </div>

@@ -4,3 +4,25 @@
     at exports.confirmBooking (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\controllers\booking.controller.js:652:25)
     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
     at async testConfirmFix ([eval]:51:3)
+[CONFIRM ERROR] 2026-08-06T07:48:00.004Z: ReferenceError: fareBreakdown is not defined
+    at M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\controllers\booking.controller.js:190:35
+    at Array.map (<anonymous>)
+    at exports.confirmBooking (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\controllers\booking.controller.js:131:53)
+    at Layer.handleRequest (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\lib\layer.js:152:17)
+    at next (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\lib\route.js:117:3)
+    at handle (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\lib\layer.js:152:17)
+    at M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\index.js:295:15
+    at processParams (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\index.js:582:12)
+[CONFIRM ERROR] 2026-08-06T07:48:05.972Z: ReferenceError: fareBreakdown is not defined
+    at M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\controllers\booking.controller.js:190:35
+    at Array.map (<anonymous>)
+    at exports.confirmBooking (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\controllers\booking.controller.js:131:53)
+    at Layer.handleRequest (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\lib\layer.js:152:17)
+    at next (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\lib\route.js:157:13)
+    at Route.dispatch (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\lib\route.js:117:3)
+    at handle (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\index.js:435:11)
+    at Layer.handleRequest (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\lib\layer.js:152:17)
+    at M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\index.js:295:15
+    at processParams (M:\FLYANYTRIP FINAL UI\FLYANYTRIP MILAN\backend\node_modules\router\index.js:582:12)

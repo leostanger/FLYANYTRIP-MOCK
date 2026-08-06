@@ -53,6 +53,14 @@ export default function ResultPage() {
   // Loading & Live Flight list states
   const [loading, setLoading] = useState(false);
   const [liveFlights, setLiveFlights] = useState([]);
+  
+  // Domestic Return specific states
+  const [isDomesticReturn, setIsDomesticReturn] = useState(false);
+  const [liveOutboundFlights, setLiveOutboundFlights] = useState([]);
+  const [liveInboundFlights, setLiveInboundFlights] = useState([]);
+  const [selectedOutboundFlight, setSelectedOutboundFlight] = useState(null);
+  const [selectedInboundFlight, setSelectedInboundFlight] = useState(null);
+
   const [errorMsg, setErrorMsg] = useState(null);
 
   // Reset all filters callback
@@ -65,114 +73,119 @@ export default function ResultPage() {
     setSelectedArrival([]);
   };
 
-  // Filter & Sort Pipeline
-  const baseFlights = liveFlights;
+  // Filter & Sort Pipeline Function
+  const applyFiltersAndSort = (flightsArray) => {
+    if (!flightsArray || !Array.isArray(flightsArray)) return [];
+    
+    const filtered = flightsArray.filter((flight) => {
+      // 1. Price filter
+      const rawPrice = parseInt(String(flight.price || "0").replace(/[^\d]/g, ""), 10) || 0;
+      if (rawPrice > maxPrice || rawPrice < minPrice) return false;
+  
+      // 2. Stops filter
+      if (selectedStops.length > 0) {
+        const stopsStr = (flight.stops || "").toLowerCase();
+        const matchesStop = selectedStops.some((s) => {
+          if (s === "non-stop") return stopsStr.includes("non") || stopsStr === "0" || stopsStr === "0 stop";
+          if (s === "1-stop") return stopsStr.includes("1") || stopsStr.includes("one");
+          if (s === "2-stops") return stopsStr.includes("2") || stopsStr.includes("multi") || stopsStr.includes("2+");
+          return true;
+        });
+        if (!matchesStop) return false;
+      }
+  
+      // 3. Airline filter
+      if (selectedAirlines.length > 0) {
+        const airlineName = (flight.airline || "").toLowerCase();
+        const code = (flight.code || "").toLowerCase();
+        const matchesAirline = selectedAirlines.some((a) => {
+          const id = String(a).toLowerCase();
+          if (id === "indigo") return airlineName.includes("indigo") || code.includes("6e");
+          if (id === "airindia") return airlineName.includes("air india") || code.includes("ai");
+          if (id === "spicejet") return airlineName.includes("spice") || code.includes("sg");
+          if (id === "vistara") return airlineName.includes("vistara") || code.includes("uk");
+          if (id === "akasa") return airlineName.includes("akasa") || code.includes("qp");
+          if (id === "airasia") return airlineName.includes("airasia") || code.includes("i5") || code.includes("ix");
+          if (id === "alliance") return airlineName.includes("alliance") || code.includes("9i");
+          if (id === "emirates") return airlineName.includes("emirates") || code.includes("ek");
+          if (id === "qatar") return airlineName.includes("qatar") || code.includes("qr");
+          if (id === "etihad") return airlineName.includes("etihad") || code.includes("ey");
+          if (id === "flydubai") return airlineName.includes("flydubai") || code.includes("fz");
+          if (id === "airarabia") return airlineName.includes("arabia") || code.includes("g9");
+          if (id === "singapore") return airlineName.includes("singapore") || code.includes("sq");
+          if (id === "gulfair") return airlineName.includes("gulf") || code.includes("gf");
+          if (id === "omanair") return airlineName.includes("oman") || code.includes("wy");
+          if (id === "saudia") return airlineName.includes("saud") || code.includes("sv");
+          if (id === "kuwait") return airlineName.includes("kuwait") || code.includes("ku");
+          if (id === "jazeera") return airlineName.includes("jazeera") || code.includes("j9");
+          if (id === "thai") return airlineName.includes("thai") || code.includes("tg");
+          if (id === "malaysia") return airlineName.includes("malaysia") || code.includes("mh");
+          if (id === "batik") return airlineName.includes("batik") || airlineName.includes("malindo") || code.includes("od");
+          if (id === "vietjet") return airlineName.includes("vietjet") || code.includes("vj");
+          if (id === "british") return airlineName.includes("british") || code.includes("ba");
+          if (id === "lufthansa") return airlineName.includes("lufthansa") || code.includes("lh");
+          if (id === "airfrance") return airlineName.includes("france") || code.includes("af");
+          if (id === "klm") return airlineName.includes("klm") || code.includes("kl");
+          if (id === "cathay") return airlineName.includes("cathay") || code.includes("cx");
+          if (id === "jal") return airlineName.includes("japan") || code.includes("jl");
+          if (id === "ana") return airlineName.includes("nippon") || code.includes("nh");
+          if (id === "united") return airlineName.includes("united") || code.includes("ua");
+          if (id === "american") return airlineName.includes("american") || code.includes("aa");
+          if (id === "delta") return airlineName.includes("delta") || code.includes("dl");
+          if (id === "turkish") return airlineName.includes("turkish") || code.includes("tk");
+          if (id === "ethiopian") return airlineName.includes("ethiopian") || code.includes("et");
+          if (id === "egyptair") return airlineName.includes("egypt") || code.includes("ms");
+  
+          return airlineName.includes(id) || code.includes(id);
+        });
+        if (!matchesAirline) return false;
+      }
+  
+      // 4. Departure Time filter
+      if (selectedDeparture.length > 0) {
+        const hour = parseInt((flight.departTime || "00").split(":")[0], 10) || 0;
+        const matchesDep = selectedDeparture.some((d) => {
+          if (d === "dep-early") return hour >= 0 && hour < 6;
+          if (d === "dep-morning") return hour >= 6 && hour < 12;
+          if (d === "dep-afternoon") return hour >= 12 && hour < 18;
+          if (d === "dep-evening") return hour >= 18 && hour < 24;
+          return true;
+        });
+        if (!matchesDep) return false;
+      }
+  
+      // 5. Arrival Time filter
+      if (selectedArrival.length > 0) {
+        const hour = parseInt((flight.arrivalTime || "00").split(":")[0], 10) || 0;
+        const matchesArr = selectedArrival.some((a) => {
+          if (a === "arr-early") return hour >= 0 && hour < 6;
+          if (a === "arr-morning") return hour >= 6 && hour < 12;
+          if (a === "arr-afternoon") return hour >= 12 && hour < 18;
+          if (a === "arr-evening") return hour >= 18 && hour < 24;
+          return true;
+        });
+        if (!matchesArr) return false;
+      }
+  
+      return true;
+    });
 
-  const filteredFlights = baseFlights.filter((flight) => {
-    // 1. Price filter
-    const rawPrice = parseInt(String(flight.price || "0").replace(/[^\d]/g, ""), 10) || 0;
-    if (rawPrice > maxPrice || rawPrice < minPrice) return false;
+    return filtered.sort((a, b) => {
+      const priceA = parseInt(String(a.price || "0").replace(/[^\d]/g, ""), 10) || 0;
+      const priceB = parseInt(String(b.price || "0").replace(/[^\d]/g, ""), 10) || 0;
+      if (sortBy === "cheapest") return priceA - priceB;
+      if (sortBy === "fastest") {
+        const durA = parseInt(String(a.duration || "0").replace(/[^\d]/g, ""), 10) || 120;
+        const durB = parseInt(String(b.duration || "0").replace(/[^\d]/g, ""), 10) || 120;
+        return durA - durB;
+      }
+      return priceA - priceB;
+    });
+  };
 
-    // 2. Stops filter
-    if (selectedStops.length > 0) {
-      const stopsStr = (flight.stops || "").toLowerCase();
-      const matchesStop = selectedStops.some((s) => {
-        if (s === "non-stop") return stopsStr.includes("non") || stopsStr === "0" || stopsStr === "0 stop";
-        if (s === "1-stop") return stopsStr.includes("1") || stopsStr.includes("one");
-        if (s === "2-stops") return stopsStr.includes("2") || stopsStr.includes("multi") || stopsStr.includes("2+");
-        return true;
-      });
-      if (!matchesStop) return false;
-    }
-
-    // 3. Airline filter
-    if (selectedAirlines.length > 0) {
-      const airlineName = (flight.airline || "").toLowerCase();
-      const code = (flight.code || "").toLowerCase();
-      const matchesAirline = selectedAirlines.some((a) => {
-        const id = String(a).toLowerCase();
-        if (id === "indigo") return airlineName.includes("indigo") || code.includes("6e");
-        if (id === "airindia") return airlineName.includes("air india") || code.includes("ai");
-        if (id === "spicejet") return airlineName.includes("spice") || code.includes("sg");
-        if (id === "vistara") return airlineName.includes("vistara") || code.includes("uk");
-        if (id === "akasa") return airlineName.includes("akasa") || code.includes("qp");
-        if (id === "airasia") return airlineName.includes("airasia") || code.includes("i5") || code.includes("ix");
-        if (id === "alliance") return airlineName.includes("alliance") || code.includes("9i");
-        if (id === "emirates") return airlineName.includes("emirates") || code.includes("ek");
-        if (id === "qatar") return airlineName.includes("qatar") || code.includes("qr");
-        if (id === "etihad") return airlineName.includes("etihad") || code.includes("ey");
-        if (id === "flydubai") return airlineName.includes("flydubai") || code.includes("fz");
-        if (id === "airarabia") return airlineName.includes("arabia") || code.includes("g9");
-        if (id === "singapore") return airlineName.includes("singapore") || code.includes("sq");
-        if (id === "gulfair") return airlineName.includes("gulf") || code.includes("gf");
-        if (id === "omanair") return airlineName.includes("oman") || code.includes("wy");
-        if (id === "saudia") return airlineName.includes("saud") || code.includes("sv");
-        if (id === "kuwait") return airlineName.includes("kuwait") || code.includes("ku");
-        if (id === "jazeera") return airlineName.includes("jazeera") || code.includes("j9");
-        if (id === "thai") return airlineName.includes("thai") || code.includes("tg");
-        if (id === "malaysia") return airlineName.includes("malaysia") || code.includes("mh");
-        if (id === "batik") return airlineName.includes("batik") || airlineName.includes("malindo") || code.includes("od");
-        if (id === "vietjet") return airlineName.includes("vietjet") || code.includes("vj");
-        if (id === "british") return airlineName.includes("british") || code.includes("ba");
-        if (id === "lufthansa") return airlineName.includes("lufthansa") || code.includes("lh");
-        if (id === "airfrance") return airlineName.includes("france") || code.includes("af");
-        if (id === "klm") return airlineName.includes("klm") || code.includes("kl");
-        if (id === "cathay") return airlineName.includes("cathay") || code.includes("cx");
-        if (id === "jal") return airlineName.includes("japan") || code.includes("jl");
-        if (id === "ana") return airlineName.includes("nippon") || code.includes("nh");
-        if (id === "united") return airlineName.includes("united") || code.includes("ua");
-        if (id === "american") return airlineName.includes("american") || code.includes("aa");
-        if (id === "delta") return airlineName.includes("delta") || code.includes("dl");
-        if (id === "turkish") return airlineName.includes("turkish") || code.includes("tk");
-        if (id === "ethiopian") return airlineName.includes("ethiopian") || code.includes("et");
-        if (id === "egyptair") return airlineName.includes("egypt") || code.includes("ms");
-
-        return airlineName.includes(id) || code.includes(id);
-      });
-      if (!matchesAirline) return false;
-    }
-
-    // 4. Departure Time filter
-    if (selectedDeparture.length > 0) {
-      const hour = parseInt((flight.departTime || "00").split(":")[0], 10) || 0;
-      const matchesDep = selectedDeparture.some((d) => {
-        if (d === "dep-early") return hour >= 0 && hour < 6;
-        if (d === "dep-morning") return hour >= 6 && hour < 12;
-        if (d === "dep-afternoon") return hour >= 12 && hour < 18;
-        if (d === "dep-evening") return hour >= 18 && hour < 24;
-        return true;
-      });
-      if (!matchesDep) return false;
-    }
-
-    // 5. Arrival Time filter
-    if (selectedArrival.length > 0) {
-      const hour = parseInt((flight.arrivalTime || "00").split(":")[0], 10) || 0;
-      const matchesArr = selectedArrival.some((a) => {
-        if (a === "arr-early") return hour >= 0 && hour < 6;
-        if (a === "arr-morning") return hour >= 6 && hour < 12;
-        if (a === "arr-afternoon") return hour >= 12 && hour < 18;
-        if (a === "arr-evening") return hour >= 18 && hour < 24;
-        return true;
-      });
-      if (!matchesArr) return false;
-    }
-
-    return true;
-  });
-
-  // Sort Pipeline
-  const displayedFlights = [...filteredFlights].sort((a, b) => {
-    const priceA = parseInt(String(a.price || "0").replace(/[^\d]/g, ""), 10) || 0;
-    const priceB = parseInt(String(b.price || "0").replace(/[^\d]/g, ""), 10) || 0;
-    if (sortBy === "cheapest") return priceA - priceB;
-    if (sortBy === "fastest") {
-      const durA = parseInt(String(a.duration || "0").replace(/[^\d]/g, ""), 10) || 120;
-      const durB = parseInt(String(b.duration || "0").replace(/[^\d]/g, ""), 10) || 120;
-      return durA - durB;
-    }
-    return priceA - priceB;
-  });
+  const displayedFlights = isDomesticReturn ? [] : applyFiltersAndSort(liveFlights);
+  const displayedOutboundFlights = isDomesticReturn ? applyFiltersAndSort(liveOutboundFlights) : [];
+  const displayedInboundFlights = isDomesticReturn ? applyFiltersAndSort(liveInboundFlights) : [];
 
   // Fetch Live Flights from Adivaha API via Backend
   useEffect(() => {
@@ -228,8 +241,9 @@ export default function ResultPage() {
         else if (Array.isArray(response?.flights)) rawList = response.flights;
         else if (Array.isArray(response)) rawList = response;
 
-        if (rawList.length > 0) {
-          const transformed = rawList.map((f, idx) => {
+        const transformFlights = (list, responseTraceId) => {
+          if (!list || !Array.isArray(list) || list.length === 0) return [];
+          return list.map((f, idx) => {
             if (!f || typeof f !== 'object') return null;
 
             const airlineCode = f.airlineCode || f.AirlineCode || f.validatingAirline || "6E";
@@ -275,8 +289,8 @@ export default function ResultPage() {
             };
 
             // Extract real departure/arrival time from Adivaha API response fields
-            const rawDepTime = f.time || f.depTime || f.departTime || f.DepartureTime || f.Segments?.[0]?.[0]?.Origin?.DepTime;
-            const rawArrTime = f.arrival || f.arrTime || f.arrivalTime || f.ArrivalTime || f.Segments?.[0]?.[f.Segments[0].length - 1]?.Destination?.ArrTime;
+            const rawDepTime = f.time || f.depTime || f.departTime || f.DepartureTime || (f.Segments && f.Segments[0] ? f.Segments[0][0]?.Origin?.DepTime : null);
+            const rawArrTime = f.arrival || f.arrTime || f.arrivalTime || f.ArrivalTime || (f.Segments && f.Segments[0] ? f.Segments[0][f.Segments[0].length - 1]?.Destination?.ArrTime : null);
             
             const depT = parseTime(rawDepTime) || "06:00";
             const arrT = parseTime(rawArrTime) || "08:15";
@@ -316,22 +330,49 @@ export default function ResultPage() {
               badge: idx === 0 ? "Cheapest" : idx === 1 ? "Fastest" : "Popular",
               baggage: f.baggage || f.Baggage || f.Segments?.[0]?.[0]?.Baggage || "15 Kgs (1 piece only)",
               cabin: f.cabinBaggage || f.CabinBaggage || f.Segments?.[0]?.[0]?.CabinBaggage || "7 Kgs (1 piece only)",
-              refundable: (f.isRefundable !== undefined ? f.isRefundable : (f.IsRefundable !== undefined ? f.IsRefundable : (f.Fare?.IsRefundable !== undefined ? f.Fare?.IsRefundable : true))) ? "Refundable" : "Non-Refundable",
+              refundable: (() => {
+                if (f.isRefundable !== undefined) return f.isRefundable;
+                if (f.IsRefundable !== undefined) return f.IsRefundable;
+                if (f.Fare?.IsRefundable !== undefined) return f.Fare?.IsRefundable;
+                return true;
+              })() ? "Refundable" : "Non-Refundable",
               seatsLeft: f.seatsLeft || f.SeatsLeft || f.NoOfSeatAvailable || 5,
               date: departureDate,
               raw: f
             };
           }).filter(Boolean);
+        };
 
-          setLiveFlights(transformed);
-          if (transformed.length > 0) {
+        const isDomesticReturnFlag = response?.data?.isDomesticReturn === true;
+        setIsDomesticReturn(isDomesticReturnFlag);
+
+        if (isDomesticReturnFlag) {
+          const outList = response?.data?.outboundFlights || [];
+          const inList = response?.data?.inboundFlights || [];
+          
+          const transformedOut = transformFlights(outList, responseTraceId);
+          const transformedIn = transformFlights(inList, responseTraceId);
+          
+          setLiveOutboundFlights(transformedOut);
+          setLiveInboundFlights(transformedIn);
+          setLiveFlights([]);
+          
+          if (transformedOut.length > 0 || transformedIn.length > 0) {
             sessionStorage.setItem('lastFlightSearchUrl', window.location.pathname + window.location.search);
           } else {
             sessionStorage.removeItem('lastFlightSearchUrl');
           }
         } else {
-          setLiveFlights([]);
-          sessionStorage.removeItem('lastFlightSearchUrl');
+          const transformed = transformFlights(rawList, responseTraceId);
+          setLiveFlights(transformed);
+          setLiveOutboundFlights([]);
+          setLiveInboundFlights([]);
+          
+          if (transformed.length > 0) {
+            sessionStorage.setItem('lastFlightSearchUrl', window.location.pathname + window.location.search);
+          } else {
+            sessionStorage.removeItem('lastFlightSearchUrl');
+          }
         }
       } catch (err) {
         console.warn("Live API Search error:", err.message);
@@ -515,6 +556,41 @@ export default function ResultPage() {
                     </button>
                   </div>
                 </div>
+              ) : isDomesticReturn ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <h3 className="font-bold text-lg text-gray-800 pb-2 border-b">Outbound Flights</h3>
+                    {displayedOutboundFlights.map((flight) => (
+                      <motion.div variants={itemVariants} key={flight.id}>
+                        <Card
+                          flight={flight}
+                          isSelectMode={true}
+                          isSelected={selectedOutboundFlight?.id === flight.id}
+                          onSelect={() => setSelectedOutboundFlight(flight)}
+                        />
+                      </motion.div>
+                    ))}
+                    {displayedOutboundFlights.length === 0 && (
+                      <div className="py-8 text-center text-gray-500">No outbound flights found</div>
+                    )}
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="font-bold text-lg text-gray-800 pb-2 border-b">Return Flights</h3>
+                    {displayedInboundFlights.map((flight) => (
+                      <motion.div variants={itemVariants} key={flight.id}>
+                        <Card
+                          flight={flight}
+                          isSelectMode={true}
+                          isSelected={selectedInboundFlight?.id === flight.id}
+                          onSelect={() => setSelectedInboundFlight(flight)}
+                        />
+                      </motion.div>
+                    ))}
+                    {displayedInboundFlights.length === 0 && (
+                      <div className="py-8 text-center text-gray-500">No return flights found</div>
+                    )}
+                  </div>
+                </div>
               ) : displayedFlights.length > 0 ? (
                 displayedFlights.map((flight) => (
                   <motion.div variants={itemVariants} key={flight.id}>
@@ -590,6 +666,56 @@ export default function ResultPage() {
         )}
 
       </div>
+
+      {/* Sticky Footer for Domestic Return Selection */}
+      {isDomesticReturn && selectedOutboundFlight && selectedInboundFlight && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-50 py-4 px-6">
+          <div className="max-w-[1240px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-6">
+              <div>
+                <span className="text-xs text-gray-500 font-bold block mb-1">Outbound</span>
+                <span className="font-bold text-[#1A1A1A]">{selectedOutboundFlight.price}</span>
+              </div>
+              <div className="text-gray-300 font-bold">+</div>
+              <div>
+                <span className="text-xs text-gray-500 font-bold block mb-1">Return</span>
+                <span className="font-bold text-[#1A1A1A]">{selectedInboundFlight.price}</span>
+              </div>
+              <div className="text-gray-300 font-bold">=</div>
+              <div>
+                <span className="text-xs text-gray-800 font-bold block mb-1">Total Fare</span>
+                <span className="font-bold text-2xl text-[#1A1A1A]">
+                  ₹{(
+                    (parseInt(String(selectedOutboundFlight.price).replace(/[^\d]/g, ""), 10) || 0) +
+                    (parseInt(String(selectedInboundFlight.price).replace(/[^\d]/g, ""), 10) || 0)
+                  ).toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                navigate("/flights/book", {
+                  state: {
+                    flights: [selectedOutboundFlight, selectedInboundFlight],
+                    searchContext: {
+                      adults: parseInt(searchParams.get("adults") || "1", 10),
+                      children: parseInt(searchParams.get("children") || "0", 10),
+                      cabinClass: searchParams.get("cabinClass") || "Economy",
+                      tripType: searchParams.get("tripType") || "one-way",
+                      departureDate: searchParams.get("departureDate") || "",
+                      origin: searchParams.get("origin") || "DEL",
+                      destination: searchParams.get("destination") || "BOM"
+                    }
+                  }
+                });
+              }}
+              className="bg-[#F12B19] hover:bg-red-700 text-white font-bold text-sm px-8 py-3 rounded-xl shadow-md transition-all active:scale-95 w-full md:w-auto"
+            >
+              Book Now
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 5. Global Footer block - placed outside main container for full-width layout */}
       <Footer />

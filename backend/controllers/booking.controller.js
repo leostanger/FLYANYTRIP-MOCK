@@ -141,7 +141,7 @@ exports.confirmBooking = async (req, res, next) => {
                 gender = Number(p.Gender) === 2 ? 2 : 1;
             }
 
-            let paxType = "1";
+            let paxType = p.PaxType ? Number(p.PaxType) : 1;
             let dobStr = parseDateString(p.DateOfBirth || "1990-01-01");
             if (dobStr.includes("T")) {
                 dobStr = dobStr.split("T")[0] + "T00:00:00";
@@ -157,13 +157,19 @@ exports.confirmBooking = async (req, res, next) => {
                     if (m < 0 || (m === 0 && departureDate.getDate() < dob.getDate())) {
                         age--;
                     }
-                    if (age < 2) paxType = "3";
-                    else if (age < 12) paxType = "2";
-                    else paxType = "1";
+                    // STRICT: Adivaha requires PaxType to match exact age range at departure
+                    if (age < 2) {
+                        paxType = 3; // Infant (0-1)
+                    } else if (age < 12) {
+                        paxType = 2; // Child (2-11)
+                    } else {
+                        paxType = 1; // Adult (12+)
+                    }
                 }
             } catch (dobErr) {
                 console.warn("Failed to parse DOB for age calculation:", dobStr);
             }
+
 
             const email = p.Email || normalizedContactDetails.Email || "guest@flyanytrip.com";
             const contactNo = p.ContactNo || normalizedContactDetails.ContactNo || "9999999999";
@@ -184,38 +190,11 @@ exports.confirmBooking = async (req, res, next) => {
                 passportExpiryStr = parsedExpiry.includes("T") ? parsedExpiry.split("T")[0] + "T00:00:00" : parsedExpiry + "T00:00:00";
             }
 
-            // Find fare breakdown for this passenger type
-            const fareBreakdown = flightSnapshot?.raw?.FareBreakdown?.find(
-                fb => Number(fb.PassengerType) === Number(paxType)
-            ) || flightSnapshot?.FareBreakdown?.find(
-                fb => Number(fb.PassengerType) === Number(paxType)
-            );
+            const passengerFareBreakdown = (flightSnapshot?.raw?.FareBreakdown || []).find(f => f.PassengerType === paxType) 
+                                           || flightSnapshot?.raw?.FareBreakdown?.[0]
+                                           || fareDetails || {};
 
-            // Fallback to average fare if breakdown is not found
-            const paxCount = passengers.length || 1;
-            const fallbackBaseFare = Math.round((fareDetails?.BaseFare || 0) / paxCount);
-            const fallbackTax = Math.round((fareDetails?.Tax || 0) / paxCount);
-            const fallbackYq = Math.round((fareDetails?.YQTax || 0) / paxCount);
-            const fallbackPub = Math.round((fareDetails?.PublishedFare || 0) / paxCount);
-            const fallbackOff = Math.round((fareDetails?.OfferedFare || 0) / paxCount);
-            const fallbackOth = Math.round((fareDetails?.OtherCharges || 0) / paxCount);
-
-            const passengerFare = {
-                Currency: fareDetails?.Currency || "INR",
-                BaseFare: fareBreakdown ? (fareBreakdown.BaseFare || 0) : fallbackBaseFare,
-                Tax: fareBreakdown ? (fareBreakdown.Tax || 0) : fallbackTax,
-                YQTax: fareBreakdown ? (fareBreakdown.YQTax || 0) : fallbackYq,
-                PublishedFare: fareBreakdown ? (fareBreakdown.PublishedFare || 0) : fallbackPub,
-                OfferedFare: fareBreakdown ? (fareBreakdown.OfferedFare || 0) : fallbackOff,
-                OtherCharges: fareBreakdown ? (fareBreakdown.OtherCharges || 0) : fallbackOth,
-                Discount: Math.round((fareDetails?.Discount || 0) / paxCount),
-                TdsOnCommission: Math.round((fareDetails?.TdsOnCommission || 0) / paxCount),
-                TdsOnPLB: Math.round((fareDetails?.TdsOnPLB || 0) / paxCount),
-                TdsOnIncentive: Math.round((fareDetails?.TdsOnIncentive || 0) / paxCount),
-                AdditionalTxnFeePub: Math.round((fareDetails?.AdditionalTxnFeePub || 0) / paxCount),
-                AdditionalTxnFeeOfrd: Math.round((fareDetails?.AdditionalTxnFeeOfrd || 0) / paxCount),
-                ServiceFee: Math.round((fareDetails?.ServiceFee || 0) / paxCount)
-            };
+            const passengerFare = passengerFareBreakdown;
 
             const passengerObj = {
                 Title: title,
@@ -261,7 +240,16 @@ exports.confirmBooking = async (req, res, next) => {
         });
 
         // 1. Call Adivaha API to book/hold the ticket
-        let adivahaRes;
+        let adivahaResList = [];
+        let ticketingResList = [];
+        let pnrList = [];
+        let providerBookingIdList = [];
+        let ticketStatusList = [];
+        let finalAdivahaRes = null;
+        let finalTicketingRes = null;
+
+        const resultIndices = String(resultIndex).split(',').map(s => s.trim()).filter(Boolean);
+
         const isMockTrace = String(traceId).startsWith('mock_trace_') || String(traceId) === 'mock_trace_multi';
         if (isMockTrace) {
             // STRICT: Never allow mock bookings to silently proceed in production
@@ -273,221 +261,163 @@ exports.confirmBooking = async (req, res, next) => {
             });
         } else {
             try {
-                // Revalidate with FareQuote first to obtain the mandatory updated ResultIndex
-                let activeResultIndex = resultIndex;
-                let activeFare = null;
-                let activeFareBreakdown = null;
+                for (let i = 0; i < resultIndices.length; i++) {
+                    const rIdx = resultIndices[i];
+                    let activeResultIndex = rIdx;
+                    let activeFare = null;
+                    let activeFareBreakdown = null;
 
-                try {
-                    console.log('Revalidating fare with FareQuote before booking...');
-                    const quoteRes = await AdivahaFlightService.getFlightFareQuote({
-                        TraceId: traceId,
-                        ResultIndex: resultIndex,
-                        EndUserIp: '127.0.0.1'
-                    });
+                    try {
+                        console.log(`Revalidating fare with FareQuote before booking for ResultIndex ${rIdx}...`);
+                        const quoteRes = await AdivahaFlightService.getFlightFareQuote({
+                            TraceId: traceId,
+                            ResultIndex: rIdx,
+                            EndUserIp: '127.0.0.1'
+                        });
 
-                    const quoteResponseData = quoteRes?.responseData?.Response || quoteRes?.Response || quoteRes;
-                    const resultsObj = Array.isArray(quoteResponseData?.Results) ? quoteResponseData.Results[0] : quoteResponseData?.Results;
-                    
-                    if (resultsObj) {
-                        if (resultsObj.ResultIndex) {
-                            activeResultIndex = resultsObj.ResultIndex;
-                            console.log('Obtained updated ResultIndex from FareQuote:', activeResultIndex);
-                        }
-                        activeFare = resultsObj.Fare;
-                        activeFareBreakdown = resultsObj.FareBreakdown;
-                    } else if (quoteResponseData?.ResultIndex) {
-                        activeResultIndex = quoteResponseData.ResultIndex;
-                        console.log('Obtained updated ResultIndex from FareQuote (fallback):', activeResultIndex);
-                        activeFare = quoteResponseData.Fare;
-                        activeFareBreakdown = quoteResponseData.FareBreakdown;
-                    }
-                } catch (quoteErr) {
-                    console.warn('FareQuote revalidation failed, using search resultIndex:', quoteErr.message);
-                }
-
-                // Inject the updated fare into the Passengers array to prevent 7606 Fare Validation errors
-                if (activeFare) {
-                    const paxCount = enrichedPassengers.length || 1;
-                    enrichedPassengers = enrichedPassengers.map(p => {
-                        let fBreakdown = null;
-                        if (Array.isArray(activeFareBreakdown)) {
-                            fBreakdown = activeFareBreakdown.find(fb => Number(fb.PassengerType) === Number(p.PaxType));
-                        } else if (activeFareBreakdown && Number(activeFareBreakdown.PassengerType) === Number(p.PaxType)) {
-                            fBreakdown = activeFareBreakdown;
-                        }
+                        const quoteResponseData = quoteRes?.responseData?.Response || quoteRes?.Response || quoteRes;
+                        const resultsObj = Array.isArray(quoteResponseData?.Results) ? quoteResponseData.Results[0] : quoteResponseData?.Results;
                         
-                        if (!fBreakdown) {
-                            fBreakdown = {
-                                BaseFare: Math.round((activeFare.BaseFare || 0) / paxCount),
-                                Tax: Math.round((activeFare.Tax || 0) / paxCount),
-                                YQTax: Math.round((activeFare.YQTax || 0) / paxCount),
-                                PublishedFare: Math.round((activeFare.PublishedFare || 0) / paxCount),
-                                OfferedFare: Math.round((activeFare.OfferedFare || 0) / paxCount),
-                                OtherCharges: Math.round((activeFare.OtherCharges || 0) / paxCount),
-                            };
-                        }
-                        return {
-                            ...p,
-                            Fare: {
-                                Currency: activeFare.Currency || "INR",
-                                BaseFare: fBreakdown.BaseFare || Math.round((activeFare.BaseFare || 0) / paxCount),
-                                Tax: fBreakdown.Tax || Math.round((activeFare.Tax || 0) / paxCount),
-                                YQTax: fBreakdown.YQTax || Math.round((activeFare.YQTax || 0) / paxCount),
-                                PublishedFare: fBreakdown.PublishedFare || Math.round((activeFare.PublishedFare || 0) / paxCount),
-                                OfferedFare: fBreakdown.OfferedFare || Math.round((activeFare.OfferedFare || 0) / paxCount),
-                                OtherCharges: fBreakdown.OtherCharges || Math.round((activeFare.OtherCharges || 0) / paxCount),
-                                Discount: fBreakdown.Discount || Math.round((activeFare.Discount || 0) / paxCount),
-                                TdsOnCommission: fBreakdown.TdsOnCommission || Math.round((activeFare.TdsOnCommission || 0) / paxCount),
-                                TdsOnPLB: fBreakdown.TdsOnPLB || Math.round((activeFare.TdsOnPLB || 0) / paxCount),
-                                TdsOnIncentive: fBreakdown.TdsOnIncentive || Math.round((activeFare.TdsOnIncentive || 0) / paxCount),
-                                AdditionalTxnFeePub: fBreakdown.AdditionalTxnFeePub || Math.round((activeFare.AdditionalTxnFeePub || 0) / paxCount),
-                                AdditionalTxnFeeOfrd: fBreakdown.AdditionalTxnFeeOfrd || Math.round((activeFare.AdditionalTxnFeeOfrd || 0) / paxCount),
-                                ServiceFee: fBreakdown.ServiceFee || Math.round((activeFare.ServiceFee || 0) / paxCount)
+                        if (resultsObj) {
+                            if (resultsObj.ResultIndex) {
+                                activeResultIndex = resultsObj.ResultIndex;
+                                console.log('Obtained updated ResultIndex from FareQuote:', activeResultIndex);
                             }
-                        };
-                    });
-                }
+                            activeFare = resultsObj.Fare;
+                            activeFareBreakdown = resultsObj.FareBreakdown;
+                        } else if (quoteResponseData?.ResultIndex) {
+                            activeResultIndex = quoteResponseData.ResultIndex;
+                            console.log('Obtained updated ResultIndex from FareQuote (fallback):', activeResultIndex);
+                            activeFare = quoteResponseData.Fare;
+                            activeFareBreakdown = quoteResponseData.FareBreakdown;
+                        }
+                    } catch (quoteErr) {
+                        console.warn('FareQuote revalidation failed, using search resultIndex:', quoteErr.message);
+                    }
 
-                const adivahaPayload = {
-                    isLCC: isLccNormalized,
-                    TraceId: traceId,
-                    ResultIndex: activeResultIndex,
-                    Passengers: enrichedPassengers,
-                    ContactDetails: normalizedContactDetails,
-                    isoneway,
-                    isDomestic,
-                    IsDomesticReturn
-                };
+                    // Copy passengers and inject exact Fare object from FareQuote
+                    const passengerFareObj = activeFare || (Array.isArray(activeFareBreakdown) ? activeFareBreakdown[0] : {});
+                    let loopPassengers = enrichedPassengers.map(p => ({
+                        ...p,
+                        Fare: passengerFareObj
+                    }));
 
-                const fs = require('fs');
-                const path = require('path');
-                try {
-                    fs.writeFileSync(path.join(__dirname, '../../adivaha_debug.json'), JSON.stringify({
-                        timestamp: new Date().toISOString(),
-                        type: 'booking_request',
-                        payload: adivahaPayload
-                    }, null, 2));
-                } catch (writeErr) {
-                    console.warn('Debug request write failed:', writeErr.message);
-                }
 
-                adivahaRes = await AdivahaFlightService.bookFlight(adivahaPayload);
-
-                try {
-                    fs.writeFileSync(path.join(__dirname, '../../adivaha_debug.json'), JSON.stringify({
-                        timestamp: new Date().toISOString(),
-                        type: 'booking_response',
-                        payload: adivahaPayload,
-                        response: adivahaRes
-                    }, null, 2));
-                } catch (writeErr) {
-                    console.warn('Debug response write failed:', writeErr.message);
-                }
-            } catch (adivahaError) {
-                console.error('Adivaha booking request error:', adivahaError);
-                
-                try {
-                    const fs = require('fs');
-                    const path = require('path');
-                    fs.writeFileSync(path.join(__dirname, '../../adivaha_error_debug.json'), JSON.stringify({
-                        timestamp: new Date().toISOString(),
-                        message: adivahaError.message,
-                        response: adivahaError.response?.data || null,
-                        stack: adivahaError.stack
-                    }, null, 2));
-                } catch(e) {
-                    console.warn('Debug error write failed:', e.message);
-                }
-
-                return res.status(400).json({
-                    success: false,
-                    message: 'Adivaha Booking Request Failed',
-                    error: adivahaError.response?.data || adivahaError.message || adivahaError
-                });
-            }
-        }
-
-        // Extract PNR and Booking ID from Adivaha Response
-        let responseData = adivahaRes?.responseData?.Response || adivahaRes?.Response || adivahaRes;
-
-        const adivahaStatusTypeStr = String(adivahaRes?.status_type || '').toLowerCase();
-        const adivahaStatusStr = String(adivahaRes?.status !== undefined ? adivahaRes.status : '').toLowerCase();
-
-        // Support both direct fields and nested fields inside responseData.Response (common in Non-LCC bookings)
-        const hasPnr = responseData?.PNR || responseData?.Response?.PNR;
-        const hasBookingId = responseData?.BookingId || responseData?.Response?.BookingId;
-        const hasOrderId = responseData?.OrderId || responseData?.Response?.OrderId || adivahaRes?.order_id;
-
-        const isFailedStatus =
-            adivahaStatusTypeStr === 'failed' ||
-            adivahaStatusStr === 'failed' ||
-            (adivahaRes?.status !== undefined && adivahaRes?.status !== "200" && adivahaRes?.status !== 200) ||
-            (!hasPnr && !hasBookingId && !hasOrderId);
-
-        let pnr = responseData?.PNR || responseData?.Response?.PNR || (hasBookingId ? String(hasBookingId) : null);
-        let providerBookingId = responseData?.BookingId || responseData?.Response?.BookingId || null;
-        let ticketStatus = responseData?.TicketStatus || responseData?.Response?.TicketStatus || (isLccNormalized ? 'TICKETED' : 'BOOKED');
-        let ticketingRes = null;
-
-        const adivahaStatusCode = adivahaRes?.Status || adivahaRes?.status;
-
-        // STRICT LIVE DATA ENFORCEMENT: Fail the booking if no PNR is returned or if the API status is failed.
-        if (!pnr || adivahaStatusCode === 7606 || adivahaStatusCode === '7606' || isFailedStatus) {
-            console.error(`🚨 Booking Failed: Adivaha API did not return a valid PNR or returned a failure status (${adivahaStatusCode || 'Failed'}).`);
-            return res.status(400).json({
-                success: false,
-                message: 'Flight booking failed at the provider (Adivaha). Please try again or check provider logs.',
-                error: adivahaRes
-            });
-        }
-
-        // 1.5. For Non-LCC flights, trigger step 2: Ticketing (issueNonLccTicket)
-        if (!isLccNormalized && providerBookingId && pnr) {
-            if (isMockTrace) {
-                ticketStatus = 'TICKETED';
-            } else {
-                try {
-                    ticketingRes = await AdivahaFlightService.issueNonLccTicket({
-                        PNR: pnr,
-                        BookingId: providerBookingId,
-                        order_id: `ORD-${Date.now()}`,
+                    const adivahaPayload = {
+                        isLCC: isLccNormalized,
                         TraceId: traceId,
+                        ResultIndex: activeResultIndex,
+                        Passengers: loopPassengers,
+                        ContactDetails: normalizedContactDetails,
                         isoneway,
                         isDomestic,
-                        IsDomesticReturn,
-                        Passengers: enrichedPassengers
-                    });
+                        IsDomesticReturn
+                    };
 
-                    const ticketResData = ticketingRes?.responseData?.Response || ticketingRes?.Response || ticketingRes;
-
-                    const ticketStatusTypeStr = String(ticketingRes?.status_type || '').toLowerCase();
-                    const ticketStatusStr = String(ticketingRes?.status !== undefined ? ticketingRes.status : '').toLowerCase();
-
-                    const ticketErrorCode = ticketResData?.Error?.ErrorCode !== undefined ? ticketResData.Error.ErrorCode : (ticketResData?.Response?.Error?.ErrorCode !== undefined ? ticketResData.Response.Error.ErrorCode : undefined);
-
-                    const isTicketFailed =
-                        ticketStatusTypeStr === 'failed' ||
-                        ticketStatusStr === 'failed' ||
-                        (ticketingRes?.status !== undefined && ticketingRes?.status !== "200" && ticketingRes?.status !== 200) ||
-                        (ticketErrorCode !== 0 && ticketErrorCode !== undefined);
-
-                    if (isTicketFailed) {
-                        console.error('Adivaha Non-LCC Ticketing Failed:', ticketingRes);
-                        ticketStatus = 'HOLD_TICKET_FAILED';
-                    } else {
-                        const finalTicketPnr = ticketResData?.PNR || ticketResData?.Response?.PNR;
-                        const finalTicketBookingId = ticketResData?.BookingId || ticketResData?.Response?.BookingId;
-                        if (finalTicketPnr) pnr = finalTicketPnr;
-                        if (finalTicketBookingId) providerBookingId = finalTicketBookingId;
-                        ticketStatus = 'TICKETED';
+                    let adivahaRes;
+                    try {
+                        adivahaRes = await AdivahaFlightService.bookFlight(adivahaPayload);
+                    } catch (adivahaError) {
+                        console.error('Adivaha booking request error for index ' + rIdx + ':', adivahaError);
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Adivaha Booking Request Failed for ' + rIdx,
+                            error: adivahaError.response?.data || adivahaError.message || adivahaError
+                        });
                     }
-                } catch (ticketingError) {
-                    console.error('Adivaha Non-LCC Ticketing request error:', ticketingError);
-                    ticketStatus = 'HOLD_TICKET_FAILED';
+                    
+                    adivahaResList.push(adivahaRes);
+                    if (!finalAdivahaRes) finalAdivahaRes = adivahaRes;
+
+                    // Extract PNR and Booking ID from Adivaha Response
+                    let responseData = adivahaRes?.responseData?.Response || adivahaRes?.Response || adivahaRes;
+                    const adivahaStatusTypeStr = String(adivahaRes?.status_type || '').toLowerCase();
+                    const adivahaStatusStr = String(adivahaRes?.status !== undefined ? adivahaRes.status : '').toLowerCase();
+                    const hasPnr = responseData?.PNR || responseData?.Response?.PNR;
+                    const hasBookingId = responseData?.BookingId || responseData?.Response?.BookingId;
+                    const hasOrderId = responseData?.OrderId || responseData?.Response?.OrderId || adivahaRes?.order_id;
+                    const isFailedStatus = adivahaStatusTypeStr === 'failed' || adivahaStatusStr === 'failed' || (adivahaRes?.status !== undefined && adivahaRes?.status !== "200" && adivahaRes?.status !== 200) || (!hasPnr && !hasBookingId && !hasOrderId);
+
+                    let loopPnr = responseData?.PNR || responseData?.Response?.PNR || (hasBookingId ? String(hasBookingId) : null);
+                    let loopProviderBookingId = responseData?.BookingId || responseData?.Response?.BookingId || null;
+                    let loopTicketStatus = responseData?.TicketStatus || responseData?.Response?.TicketStatus || (isLccNormalized ? 'TICKETED' : 'BOOKED');
+                    let ticketingRes = null;
+                    const adivahaStatusCode = adivahaRes?.Status || adivahaRes?.status;
+                    const isValidBooking = isLccNormalized ? !!loopPnr : !!loopProviderBookingId;
+
+                    const isSessionExpired = adivahaStatusCode === 7606 || adivahaStatusCode === '7606';
+
+                    if (!isValidBooking || isSessionExpired || isFailedStatus) {
+                        console.error(`🚨 Booking Failed: Adivaha returned ${isSessionExpired ? 'session-expired (7606)' : 'failure status'}. PNR: ${loopPnr || 'none'}`);
+                        console.error('Adivaha Response:', JSON.stringify(adivahaRes, null, 2));
+                        try {
+                            const fs = require('fs');
+                            fs.writeFileSync('adivaha_fail_log.json', JSON.stringify({ adivahaPayload, adivahaRes }, null, 2));
+                        } catch (logErr) {
+                            console.error('Failed to write adivaha_fail_log:', logErr.message);
+                        }
+                        const userMessage = isSessionExpired
+                            ? 'Your booking session has expired. Flight prices change frequently. Please search for flights again to get fresh results.'
+                            : (adivahaRes?.status_message || 'Flight booking failed at the provider (Adivaha). Please search for flights again and retry.');
+                        return res.status(400).json({
+                            success: false,
+                            sessionExpired: isSessionExpired,
+                            message: userMessage,
+                            error: adivahaRes
+                        });
+                    }
+
+                    if (!isLccNormalized && loopProviderBookingId) {
+                        try {
+                            ticketingRes = await AdivahaFlightService.issueNonLccTicket({
+                                PNR: loopPnr,
+                                BookingId: loopProviderBookingId,
+                                order_id: `ORD-${Date.now()}-${i}`,
+                                TraceId: traceId,
+                                isoneway,
+                                isDomestic,
+                                IsDomesticReturn,
+                                Passengers: loopPassengers
+                            });
+                            ticketingResList.push(ticketingRes);
+                            if (!finalTicketingRes) finalTicketingRes = ticketingRes;
+
+                            const ticketResData = ticketingRes?.responseData?.Response || ticketingRes?.Response || ticketingRes;
+                            const ticketStatusTypeStr = String(ticketingRes?.status_type || '').toLowerCase();
+                            const ticketStatusStr = String(ticketingRes?.status !== undefined ? ticketingRes.status : '').toLowerCase();
+                            const ticketErrorCode = ticketResData?.Error?.ErrorCode !== undefined ? ticketResData.Error.ErrorCode : (ticketResData?.Response?.Error?.ErrorCode !== undefined ? ticketResData.Response.Error.ErrorCode : undefined);
+                            const isTicketFailed = ticketStatusTypeStr === 'failed' || ticketStatusStr === 'failed' || (ticketingRes?.status !== undefined && ticketingRes?.status !== "200" && ticketingRes?.status !== 200) || (ticketErrorCode !== 0 && ticketErrorCode !== undefined);
+
+                            if (isTicketFailed) {
+                                loopTicketStatus = 'HOLD_TICKET_FAILED';
+                            } else {
+                                const finalTicketPnr = ticketResData?.PNR || ticketResData?.Response?.PNR;
+                                const finalTicketBookingId = ticketResData?.BookingId || ticketResData?.Response?.BookingId;
+                                if (finalTicketPnr) loopPnr = finalTicketPnr;
+                                if (finalTicketBookingId) loopProviderBookingId = finalTicketBookingId;
+                                loopTicketStatus = 'TICKETED';
+                            }
+                        } catch (ticketingError) {
+                            console.error('Adivaha Non-LCC Ticketing request error:', ticketingError);
+                            loopTicketStatus = 'HOLD_TICKET_FAILED';
+                        }
+                    }
+
+                    pnrList.push(loopPnr);
+                    providerBookingIdList.push(loopProviderBookingId);
+                    ticketStatusList.push(loopTicketStatus);
                 }
+            } catch (error) {
+                console.error('Booking loop error:', error);
+                return res.status(500).json({ success: false, message: 'Internal booking loop error', error: error.message });
             }
         }
+
+        let pnr = pnrList.join(',');
+        let providerBookingId = providerBookingIdList[0] || null;
+        let ticketStatus = ticketStatusList.includes('HOLD_TICKET_FAILED') ? 'HOLD_TICKET_FAILED' : (ticketStatusList[0] || 'BOOKED');
+        let adivahaRes = adivahaResList.length === 1 ? adivahaResList[0] : adivahaResList;
+        let ticketingRes = ticketingResList.length === 1 ? ticketingResList[0] : (ticketingResList.length > 0 ? ticketingResList : null);
 
         // 2. Find or Create User if not logged in
         let actualUserId = userId ? parseInt(userId, 10) : null;
@@ -553,6 +483,7 @@ exports.confirmBooking = async (req, res, next) => {
                         raw_response: {
                             adivaha: adivahaRes,
                             adivahaTicketing: ticketingRes,
+                            all_provider_booking_ids: providerBookingIdList,
                             passengers: enrichedPassengers.map((p, idx) => {
                                 const seatSel = ssrSelections?.seats?.find(s => s.paxIdx === idx);
                                 const mealSel = ssrSelections?.meals?.find(m => m.paxIdx === idx);

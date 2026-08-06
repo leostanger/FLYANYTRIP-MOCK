@@ -24,7 +24,7 @@ const searchFlights = async (req, res, next) => {
       return res.status(200).json({
         success: true,
         source: 'cache',
-        data: { flights: cachedResult },
+        data: cachedResult,
       });
     }
 
@@ -46,12 +46,12 @@ const searchFlights = async (req, res, next) => {
     }
 
     // Cache the result for subsequent similar searches
-    apiCache.set(cacheKey, searchResults.flights);
+    apiCache.set(cacheKey, searchResults);
 
     return res.status(200).json({
       success: true,
       source: 'api',
-      data: { flights: searchResults.flights },
+      data: searchResults,
     });
   } catch (error) {
     next(error); // Pass to global error handler

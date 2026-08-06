@@ -50,21 +50,26 @@ export default function BookingPage() {
   };
 
   // Retrieve parameters passed from the flight list page with sessionStorage caching fallback
-  const getInitialFlight = () => {
+  const getInitialFlights = () => {
+    const stateFlights = location.state?.flights;
+    if (stateFlights) {
+      sessionStorage.setItem("selectedFlights", JSON.stringify(stateFlights));
+      return stateFlights;
+    }
     const stateFlight = location.state?.flight;
     if (stateFlight) {
-      sessionStorage.setItem("selectedFlight", JSON.stringify(stateFlight));
-      return stateFlight;
+      sessionStorage.setItem("selectedFlights", JSON.stringify([stateFlight]));
+      return [stateFlight];
     }
-    const cachedFlight = sessionStorage.getItem("selectedFlight");
-    if (cachedFlight) {
+    const cachedFlights = sessionStorage.getItem("selectedFlights");
+    if (cachedFlights) {
       try {
-        return JSON.parse(cachedFlight);
+        return JSON.parse(cachedFlights);
       } catch (e) {
-        console.warn("Failed to parse cached flight:", e);
+        console.warn("Failed to parse cached flights:", e);
       }
     }
-    return defaultFlight;
+    return [defaultFlight];
   };
 
   const getInitialFare = () => {
@@ -101,7 +106,8 @@ export default function BookingPage() {
     return {};
   };
 
-  const flight = getInitialFlight();
+  const flights = getInitialFlights();
+  const flight = flights[0] || {}; // Backward compatibility for UI components that only need the primary flight
   const fare = getInitialFare();
   const searchContext = getInitialSearchContext();
   const searchAdults = Math.max(1, parseInt(searchContext.adults || 1, 10));
@@ -221,13 +227,16 @@ export default function BookingPage() {
 
     try {
       // 1. Guard: Ensure real traceId and resultIndex exist before proceeding
-      const realTraceId = flight?.traceId || flight?.raw?.traceId;
-      const realResultIndex = flight?.resultIndex || flight?.raw?.resultIndex;
+      const realTraceId = flights[0]?.traceId || flights[0]?.raw?.traceId;
+      const resultIndices = flights.map(f => f.resultIndex || f.raw?.resultIndex).filter(Boolean);
+      const realResultIndex = resultIndices.join(',');
+      const isLCCArray = flights.map(f => f.isLCC !== undefined ? f.isLCC : (f.raw?.isLCC !== undefined ? f.raw?.isLCC : (f.raw?.IsLCC !== undefined ? f.raw?.IsLCC : false)));
+      const isLCCFlag = isLCCArray.every(v => v === true) ? true : (isLCCArray.every(v => v === false) ? false : isLCCArray[0]);
 
       if (!realTraceId || String(realTraceId).startsWith('mock_trace_')) {
         throw new Error('Invalid booking session: TraceId is missing or expired. Please search for flights again.');
       }
-      if (!realResultIndex) {
+      if (resultIndices.length === 0) {
         throw new Error('Invalid booking session: ResultIndex is missing. Please search for flights again.');
       }
 
@@ -239,18 +248,32 @@ export default function BookingPage() {
         body: JSON.stringify({
           traceId: realTraceId,
           resultIndex: realResultIndex,
-          isLCC: flight?.isLCC !== undefined ? flight?.isLCC : (flight?.raw?.isLCC !== undefined ? flight?.raw?.isLCC : (flight?.raw?.IsLCC !== undefined ? flight?.raw?.IsLCC : false)),
+          isLCC: isLCCFlag,
           passengers: passengers.map((p, idx) => {
             const pSeat = addonsData.paxSeatsMap?.[idx]?.seat || (idx === 0 ? selectedSeat : null);
             const rawTitle = p.title || "Mr";
             const cleanTitle = rawTitle.replace(/\./g, ""); // Strip any dot
+            // Map passenger type string -> PaxType number (1=Adult, 2=Child 2-11, 3=Infant 0-1)
+            const typeStr = (p.type || "Adult").toLowerCase();
+            let paxType = 1; // Adult default
+            let defaultDob = "1995-01-01"; // Adult default
+            if (typeStr === "child" || typeStr === "children") {
+              paxType = 2;
+              defaultDob = "2020-01-01"; // Child age 6 in 2026 (must be 2-11)
+            } else if (typeStr === "infant" || typeStr === "infants") {
+              paxType = 3;
+              defaultDob = "2025-06-01"; // Infant age 1 in 2026 (must be 0-1)
+            }
             return {
               Title: cleanTitle,
-              FirstName: p.firstName || "Rahul",
+              FirstName: p.firstName || (paxType === 2 ? "Aarav" : (paxType === 3 ? "Baby" : "Rahul")),
               LastName: p.lastName || "Sharma",
-              DateOfBirth: p.dob || "1990-08-15",
+              DateOfBirth: p.dob || defaultDob,
+              PaxType: paxType,
+              Nationality: (p.nationality || "IN").substring(0, 2).toUpperCase(),
               Seat: pSeat ? { Code: pSeat } : undefined
             };
+
           }),
           contactDetails,
           ssrSelections: {
@@ -346,14 +369,14 @@ export default function BookingPage() {
       }
     } catch (err) {
       console.error("Payment confirmation error:", err);
-      // Session / TraceId expired errors
-      if (err.message?.toLowerCase().includes("session") || err.message?.toLowerCase().includes("traceid") || err.message?.toLowerCase().includes("expired")) {
-        alert("⏰ Session Expired\n\nYour booking session has expired. Please search for flights again and complete the booking within 15 minutes.\n\nYou will be taken back to the search page.");
+      // Check if the error body includes sessionExpired flag (7606 from Adivaha)
+      if (err.responseBody?.sessionExpired || err.message?.toLowerCase().includes("session") || err.message?.toLowerCase().includes("expired")) {
+        alert("⏰ Session Expired\n\n" + (err.responseBody?.message || err.message || "Your booking session has expired.") + "\n\nYou will be taken back to the search page.");
         navigate("/flights");
-      } else if (err.message?.includes("fetch") || err.message?.includes("API Error")) {
+      } else if (err.message?.includes("fetch") || err.message?.includes("Failed to fetch")) {
         alert("Connection error. Please ensure the server is running and try again.");
       } else {
-        alert("Error confirming booking: " + err.message);
+        alert("Booking error: " + (err.responseBody?.message || err.message));
       }
     } finally {
       setIsConfirming(false);
@@ -549,7 +572,7 @@ export default function BookingPage() {
 
           {/* Right Column - Booking Summary & Fare Summary separated */}
           <div className="lg:col-span-4 space-y-4">
-            <BookingSummary flight={flight} />
+            <BookingSummary flight={flight} flights={flights} />
             
             <FareSummary 
               basePrice={basePrice} 

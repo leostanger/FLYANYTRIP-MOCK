@@ -18,7 +18,10 @@ export const fetchAPI = async (endpoint, options = {}) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `API Error: ${response.status}`);
+    const err = new Error(errorData.message || `API Error: ${response.status}`);
+    err.responseBody = errorData; // Attach full body so callers can inspect sessionExpired, etc.
+    err.status = response.status;
+    throw err;
   }
 
   return response.json();

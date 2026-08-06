@@ -25,7 +25,7 @@
     "morgan": "^1.10.1",
     "node-cache": "^5.1.2",
     "nodemailer": "^8.0.10",
-    "pdfmake": "^0.3.10",
+    "pdfmake": "^0.2.10",
     "pg": "^8.20.0",
     "razorpay": "^2.9.6",
     "shortid": "^2.2.17"

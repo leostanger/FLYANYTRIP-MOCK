@@ -164,101 +164,116 @@ class AdivahaFlightService {
         response.data?.TokenId;
 
       if (resultsArray && resultsArray.length > 0) {
-        // Adivaha often nests results: [[flight1, flight2, ...]]
-        // We flatten it if necessary
-        if (Array.isArray(resultsArray[0])) {
-          resultsArray = resultsArray[0];
+        let outboundRaw = [];
+        let inboundRaw = [];
+        let isDomesticReturn = false;
+
+        if (Array.isArray(resultsArray[0]) && Array.isArray(resultsArray[1])) {
+          isDomesticReturn = true;
+          outboundRaw = resultsArray[0];
+          inboundRaw = resultsArray[1];
+        } else if (Array.isArray(resultsArray[0])) {
+          outboundRaw = resultsArray[0];
         } else if (resultsArray[0] && typeof resultsArray[0] === 'object') {
-          resultsArray = Object.values(resultsArray[0]);
+          outboundRaw = Object.values(resultsArray[0]);
+        } else {
+          outboundRaw = resultsArray;
         }
 
-        const mappedFlights = resultsArray.map((f, index) => {
-          // ... (rest of mapping logic)
-          // (Keeping lines 106-174 same)
-          const firstSegment = f.Segments?.[0]?.[0];
-          const lastSegment = f.Segments?.[0]?.[f.Segments[0].length - 1];
-          if (!firstSegment) return null;
-          const formatTime = (dateStr) => {
-            if (!dateStr) return '';
-            const d = new Date(dateStr);
-            if (isNaN(d.getTime())) return '';
-            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          };
-          const formatDuration = (mins) => {
-            if (!mins || isNaN(mins)) return '0m';
-            const h = Math.floor(mins / 60);
-            const m = Math.floor(mins % 60);
-            if (h > 0 && m > 0) return `${h}h ${m}m`;
-            if (h > 0) return `${h}h`;
-            return `${m}m`;
-          };
-          const segments = f.Segments?.[0] || [];
-          const numStops = segments.length > 0 ? segments.length - 1 : 0;
-          let totalDurationMins = 0;
-          let layoverStr = "";
-          if (segments.length === 1) {
-            totalDurationMins = segments[0].AccumulatedDuration || segments[0].Duration || 0;
-          } else if (segments.length > 1) {
-            let calculatedTotal = 0;
-            let layoverDetails = [];
-            for (let i = 0; i < segments.length; i++) {
-              calculatedTotal += (segments[i].Duration || 0);
-              if (i < segments.length - 1) {
-                const currentSeg = segments[i];
-                const nextSeg = segments[i + 1];
-                const arrTime = new Date(currentSeg.Destination.ArrTime);
-                const depTime = new Date(nextSeg.Origin.DepTime);
-                let layoverMins = 0;
-                if (!isNaN(arrTime.getTime()) && !isNaN(depTime.getTime())) {
-                  layoverMins = Math.floor((depTime - arrTime) / (1000 * 60));
-                  if (layoverMins < 0) layoverMins = 0;
-                }
-                calculatedTotal += layoverMins;
-                const layoverCity = currentSeg.Destination.Airport?.CityName || currentSeg.Destination.Airport?.AirportCode || 'Unknown';
-                if (layoverMins > 0) {
-                  layoverDetails.push(`${layoverCity} (${formatDuration(layoverMins)})`);
-                } else {
-                  layoverDetails.push(`${layoverCity}`);
+        const mapFlights = (rawArray, prefix) => {
+          return rawArray.map((f, index) => {
+            const firstSegment = f.Segments?.[0]?.[0];
+            const lastSegment = f.Segments?.[0]?.[f.Segments[0].length - 1];
+            if (!firstSegment) return null;
+            const formatTime = (dateStr) => {
+              if (!dateStr) return '';
+              const d = new Date(dateStr);
+              if (isNaN(d.getTime())) return '';
+              return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            };
+            const formatDuration = (mins) => {
+              if (!mins || isNaN(mins)) return '0m';
+              const h = Math.floor(mins / 60);
+              const m = Math.floor(mins % 60);
+              if (h > 0 && m > 0) return `${h}h ${m}m`;
+              if (h > 0) return `${h}h`;
+              return `${m}m`;
+            };
+            const segments = f.Segments?.[0] || [];
+            const numStops = segments.length > 0 ? segments.length - 1 : 0;
+            let totalDurationMins = 0;
+            let layoverStr = "";
+            if (segments.length === 1) {
+              totalDurationMins = segments[0].AccumulatedDuration || segments[0].Duration || 0;
+            } else if (segments.length > 1) {
+              let calculatedTotal = 0;
+              let layoverDetails = [];
+              for (let i = 0; i < segments.length; i++) {
+                calculatedTotal += (segments[i].Duration || 0);
+                if (i < segments.length - 1) {
+                  const currentSeg = segments[i];
+                  const nextSeg = segments[i + 1];
+                  const arrTime = new Date(currentSeg.Destination.ArrTime);
+                  const depTime = new Date(nextSeg.Origin.DepTime);
+                  let layoverMins = 0;
+                  if (!isNaN(arrTime.getTime()) && !isNaN(depTime.getTime())) {
+                    layoverMins = Math.floor((depTime - arrTime) / (1000 * 60));
+                    if (layoverMins < 0) layoverMins = 0;
+                  }
+                  calculatedTotal += layoverMins;
+                  const layoverCity = currentSeg.Destination.Airport?.CityName || currentSeg.Destination.Airport?.AirportCode || 'Unknown';
+                  if (layoverMins > 0) {
+                    layoverDetails.push(`${layoverCity} (${formatDuration(layoverMins)})`);
+                  } else {
+                    layoverDetails.push(`${layoverCity}`);
+                  }
                 }
               }
+              totalDurationMins = lastSegment?.AccumulatedDuration || calculatedTotal;
+              if (numStops === 1) {
+                layoverStr = `1 Stop at ${layoverDetails[0]}`;
+              } else {
+                layoverStr = `${numStops} Stops at ${layoverDetails.join(', ')}`;
+              }
             }
-            totalDurationMins = lastSegment?.AccumulatedDuration || calculatedTotal;
-            if (numStops === 1) {
-              layoverStr = `1 Stop at ${layoverDetails[0]}`;
-            } else {
-              layoverStr = `${numStops} Stops at ${layoverDetails.join(', ')}`;
-            }
-          }
+  
+            return {
+              id: f.ResultIndex || `adivaha_${prefix}_${index}`,
+              traceId: traceId,
+              tokenId: tokenId,
+              resultIndex: f.ResultIndex,
+              type: 'flight',
+              airline: firstSegment.Airline?.AirlineName || 'Airlines',
+              airlineCode: firstSegment.Airline?.AirlineCode,
+              flight: `${firstSegment.Airline?.AirlineCode}-${firstSegment.Airline?.FlightNumber}`,
+              from: firstSegment.Origin?.Airport?.AirportCode || origin,
+              to: lastSegment?.Destination?.Airport?.AirportCode || destination,
+              time: formatTime(firstSegment.Origin?.DepTime),
+              arrival: formatTime(lastSegment?.Destination?.ArrTime),
+              dur: formatDuration(totalDurationMins),
+              stops: numStops,
+              layover: layoverStr,
+              baggage: firstSegment.Baggage || f.Baggage || "15 Kgs (1 piece only)",
+              cabinBaggage: firstSegment.CabinBaggage || f.CabinBaggage || "7 Kgs (1 piece only)",
+              isRefundable: f.IsRefundable !== undefined ? Boolean(f.IsRefundable) : (f.Fare?.IsRefundable !== undefined ? Boolean(f.Fare?.IsRefundable) : true),
+              seatsLeft: firstSegment.NoOfSeatAvailable || f.NoOfSeatAvailable || 5,
+              price: Math.ceil(f.Fare?.OfferedFare || f.Fare?.PublishedFare || 0).toLocaleString('en-IN'),
+              publishedPrice: Math.ceil(f.Fare?.PublishedFare || 0).toLocaleString('en-IN'),
+              class: firstSegment.FareClassification?.Type || searchPayload.cabinClass || 'Economy',
+              isLCC: f.IsLCC !== undefined ? Boolean(f.IsLCC) : false,
+              raw: f // keep original for debug
+            };
+          }).filter(Boolean);
+        };
 
-          return {
-            id: f.ResultIndex || `adivaha_${index}`,
-            traceId: traceId,
-            tokenId: tokenId,
-            resultIndex: f.ResultIndex,
-            type: 'flight',
-            airline: firstSegment.Airline?.AirlineName || 'Airlines',
-            airlineCode: firstSegment.Airline?.AirlineCode,
-            flight: `${firstSegment.Airline?.AirlineCode}-${firstSegment.Airline?.FlightNumber}`,
-            from: firstSegment.Origin?.Airport?.AirportCode || origin,
-            to: lastSegment?.Destination?.Airport?.AirportCode || destination,
-            time: formatTime(firstSegment.Origin?.DepTime),
-            arrival: formatTime(lastSegment?.Destination?.ArrTime),
-            dur: formatDuration(totalDurationMins),
-            stops: numStops,
-            layover: layoverStr,
-            baggage: firstSegment.Baggage || f.Baggage || "15 Kgs (1 piece only)",
-            cabinBaggage: firstSegment.CabinBaggage || f.CabinBaggage || "7 Kgs (1 piece only)",
-            isRefundable: f.IsRefundable !== undefined ? Boolean(f.IsRefundable) : (f.Fare?.IsRefundable !== undefined ? Boolean(f.Fare?.IsRefundable) : true),
-            seatsLeft: firstSegment.NoOfSeatAvailable || f.NoOfSeatAvailable || 5,
-            price: Math.ceil(f.Fare?.OfferedFare || f.Fare?.PublishedFare || 0).toLocaleString('en-IN'),
-            publishedPrice: Math.ceil(f.Fare?.PublishedFare || 0).toLocaleString('en-IN'),
-            class: firstSegment.FareClassification?.Type || searchPayload.cabinClass || 'Economy',
-            isLCC: f.IsLCC !== undefined ? Boolean(f.IsLCC) : false,
-            raw: f // keep original for debug
-          };
-        }).filter(Boolean);
-
-        return { flights: mappedFlights, rawAdivahaResponse: response.data };
+        if (isDomesticReturn) {
+          const outboundFlights = mapFlights(outboundRaw, 'out');
+          const inboundFlights = mapFlights(inboundRaw, 'in');
+          return { flights: outboundFlights, outboundFlights, inboundFlights, isDomesticReturn: true, rawAdivahaResponse: response.data };
+        } else {
+          const mappedFlights = mapFlights(outboundRaw, 'one');
+          return { flights: mappedFlights, rawAdivahaResponse: response.data };
+        }
       }
 
       return { flights: [], rawAdivahaResponse: response.data };
@@ -451,6 +466,7 @@ class AdivahaFlightService {
     }
   }
 
+
   /**
    * Get lowest airfare of the month
    * POST https://api.adivaha.io/flights/api/?action=GetCalendarFare
@@ -567,6 +583,7 @@ class AdivahaFlightService {
     }
   }
 
+
   /**
    * Issue a ticket for a Non-LCC flight (after successful hold/book)
    * POST https://api.adivaha.io/flights/api/
@@ -586,7 +603,7 @@ class AdivahaFlightService {
       } = ticketingPayload;
 
       const apiPayload = {
-        action: "ticketForNonLcc",
+        action: "ticket",
         PNR,
         BookingId,
         order_id,
@@ -598,10 +615,10 @@ class AdivahaFlightService {
         Passengers
       };
 
-      const response = await adivahaClient.post('/?action=ticketForNonLcc', apiPayload);
+      const response = await adivahaClient.post('/?action=ticket', apiPayload);
       return response.data;
     } catch (error) {
-      console.error('Adivaha ticketForNonLcc Error:', error.response?.data || error.message);
+      console.error('Adivaha ticket Error:', error.response?.data || error.message);
       throw error;
     }
   }

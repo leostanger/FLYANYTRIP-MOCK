@@ -52,13 +52,8 @@ export const getAirlineLogoUrl = (flight) => {
   return "https://images.kiwi.com/airlines/64/6E.png";
 };
 
-export default function BookingSummary({ flight }) {
-  const flightObj = flight || {};
-  const depTime = flightObj.departTime || flightObj.depTime || "06:00";
-  const arrTime = flightObj.arrivalTime || flightObj.arrTime || "08:10";
-  const duration = flightObj.duration || "2h 10m";
-  const stops    = flightObj.stops    || "Non-stop";
-  const airlineLogo = getAirlineLogoUrl(flightObj);
+export default function BookingSummary({ flight, flights }) {
+  const flightList = (flights && flights.length > 0) ? flights : [flight || {}];
 
   return (
     <div className="w-full bg-white border border-[#eaeaea] rounded-[13.88px] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] font-['Quicksand'] select-none text-left">
@@ -69,60 +64,71 @@ export default function BookingSummary({ flight }) {
         Review your trip details
       </p>
 
-      {/* Airline Row */}
-      <div className="flex items-center gap-3 pb-4 border-b border-[#F0F0F0]">
-        <div className="w-11 h-11 rounded-xl overflow-hidden border border-[#EAEAEA] flex items-center justify-center bg-white flex-shrink-0 p-1">
-          <img
-            src={airlineLogo}
-            alt={flightObj.airline || "IndiGo"}
-            className="w-full h-full object-contain"
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = "https://images.kiwi.com/airlines/64/6E.png";
-            }}
-          />
-        </div>
-        <div>
-          <p className="font-['Satoshi'] font-bold text-[14.5px] text-[#1A1A1A] leading-tight">
-            {flightObj.airline || "IndiGo"} &ndash; {flightObj.code || "6E-204"}
-          </p>
-          <p className="font-['Quicksand'] text-[12px] text-[#888888] font-medium mt-0.5">
-            {flightObj.departCity || "DEL"} &rarr; {flightObj.arrivalCity || "BOM"}
-          </p>
-          <p className="font-['Quicksand'] text-[12px] text-[#888888] font-medium mt-0.5">
-            15 Dec 2026 &bull; Economy
-          </p>
-        </div>
-      </div>
+      {flightList.map((flightObj, idx) => {
+        const depTime = flightObj.departTime || flightObj.depTime || "06:00";
+        const arrTime = flightObj.arrivalTime || flightObj.arrTime || "08:10";
+        const duration = flightObj.duration || "2h 10m";
+        const stops    = flightObj.stops    || "Non-stop";
+        const airlineLogo = getAirlineLogoUrl(flightObj);
+        
+        return (
+          <div key={idx} className={idx < flightList.length - 1 ? "pb-5 mb-5 border-b border-[#F0F0F0]" : ""}>
+            {/* Airline Row */}
+            <div className="flex items-center gap-3 pb-4">
+              <div className="w-11 h-11 rounded-xl overflow-hidden border border-[#EAEAEA] flex items-center justify-center bg-white flex-shrink-0 p-1">
+                <img
+                  src={airlineLogo}
+                  alt={flightObj.airline || "IndiGo"}
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "https://images.kiwi.com/airlines/64/6E.png";
+                  }}
+                />
+              </div>
+              <div>
+                <p className="font-['Satoshi'] font-bold text-[14.5px] text-[#1A1A1A] leading-tight">
+                  {flightObj.airline || "IndiGo"} &ndash; {flightObj.code || "6E-204"}
+                </p>
+                <p className="font-['Quicksand'] text-[12px] text-[#888888] font-medium mt-0.5">
+                  {flightObj.departCity || "DEL"} &rarr; {flightObj.arrivalCity || "BOM"}
+                </p>
+                <p className="font-['Quicksand'] text-[12px] text-[#888888] font-medium mt-0.5">
+                  15 Dec 2026 &bull; Economy
+                </p>
+              </div>
+            </div>
 
-      {/* Time / Duration Row */}
-      <div className="flex items-center justify-between gap-3 pt-4">
-        {/* Departure */}
-        <div>
-          <span className="font-['Satoshi'] font-bold text-[22px] text-[#1A1A1A] leading-none block">
-            {depTime}
-          </span>
-        </div>
+            {/* Time / Duration Row */}
+            <div className="flex items-center justify-between gap-3">
+              {/* Departure */}
+              <div>
+                <span className="font-['Satoshi'] font-bold text-[22px] text-[#1A1A1A] leading-none block">
+                  {depTime}
+                </span>
+              </div>
 
-        {/* Timeline */}
-        <div className="flex-grow text-center flex flex-col items-center gap-0.5 mx-2">
-          <span className="font-['Quicksand'] text-[11px] font-semibold text-[#999999]">{duration}</span>
-          <div className="relative w-full flex items-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#CCCCCC] flex-shrink-0" />
-            <div className="h-[1px] flex-grow bg-[#E0E0E0]" />
-            <div className="w-2 h-2 rounded-full bg-[#BBBBBB] flex-shrink-0" />
+              {/* Timeline */}
+              <div className="flex-grow text-center flex flex-col items-center gap-0.5 mx-2">
+                <span className="font-['Quicksand'] text-[11px] font-semibold text-[#999999]">{duration}</span>
+                <div className="relative w-full flex items-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#CCCCCC] flex-shrink-0" />
+                  <div className="h-[1px] flex-grow bg-[#E0E0E0]" />
+                  <div className="w-2 h-2 rounded-full bg-[#BBBBBB] flex-shrink-0" />
+                </div>
+                <span className="font-['Quicksand'] text-[11px] font-medium text-[#999999]">{stops}</span>
+              </div>
+
+              {/* Arrival */}
+              <div className="text-right">
+                <span className="font-['Satoshi'] font-bold text-[22px] text-[#1A1A1A] leading-none block">
+                  {arrTime}
+                </span>
+              </div>
+            </div>
           </div>
-          <span className="font-['Quicksand'] text-[11px] font-medium text-[#999999]">{stops}</span>
-        </div>
-
-        {/* Arrival */}
-        <div className="text-right">
-          <span className="font-['Satoshi'] font-bold text-[22px] text-[#1A1A1A] leading-none block">
-            {arrTime}
-          </span>
-        </div>
-      </div>
-
+        );
+      })}
     </div>
   );
 }
