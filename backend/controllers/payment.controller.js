@@ -87,7 +87,7 @@ const getConfig = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       data: {
-      keyId: process.env.RAZORPAY_KEY_ID || ''
+        keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_RH0I6LBnmc0Ziz'
       }
     });
   } catch (error) {
