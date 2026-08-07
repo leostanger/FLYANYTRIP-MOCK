@@ -198,8 +198,9 @@ exports.confirmBooking = async (req, res, next) => {
             }
 
 
-            const email = p.Email || normalizedContactDetails.Email || "guest@flyanytrip.com";
-            const contactNo = p.ContactNo || normalizedContactDetails.ContactNo || "9999999999";
+            const email = String(p.Email || normalizedContactDetails.Email || "guest@flyanytrip.com").trim().toLowerCase();
+            let rawContact = String(p.ContactNo || normalizedContactDetails.ContactNo || "9999999999").replace(/[^\d]/g, "");
+            const contactNo = rawContact.length >= 10 ? rawContact.slice(-10) : "9999999999";
 
             const addressLine1 = p.AddressLine1 || normalizedContactDetails.AddressLine1 || "Street Address";
             const addressLine2 = p.AddressLine2 || normalizedContactDetails.AddressLine2 || "";
@@ -239,10 +240,15 @@ exports.confirmBooking = async (req, res, next) => {
 
             const passengerFare = passengerFareBreakdown;
 
+            let cleanFirstName = String(p.FirstName || (paxType === 2 ? "Aarav" : (paxType === 3 ? "Baby" : "Rahul"))).replace(/[^a-zA-Z\s]/g, "").trim();
+            let cleanLastName = String(p.LastName || "Sharma").replace(/[^a-zA-Z\s]/g, "").trim();
+            if (!cleanFirstName) cleanFirstName = paxType === 2 ? "Aarav" : (paxType === 3 ? "Baby" : "Rahul");
+            if (!cleanLastName) cleanLastName = "Sharma";
+
             const passengerObj = {
                 Title: title,
-                FirstName: p.FirstName || "Rahul",
-                LastName: p.LastName || "Sharma",
+                FirstName: cleanFirstName,
+                LastName: cleanLastName,
                 PaxType: paxType,
                 DateOfBirth: dobStr,
                 Gender: gender,
