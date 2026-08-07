@@ -126,7 +126,7 @@ export default function BookingPayment({ flight, selectedFare, passengers = [], 
 
       if (window.Razorpay) {
         const options = {
-          key: "rzp_test_RH0I6LBnmc0Ziz",
+          key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_RH0I6LBnmc0Ziz",
           amount: orderAmount,
           currency: "INR",
           name: "FlyAnyTrip",
