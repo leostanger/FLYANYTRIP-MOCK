@@ -21,6 +21,7 @@ model bookings {
   users           users?           @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   flight_bookings flight_bookings?
   hotel_bookings  hotel_bookings?
+  payments        payments[]
 
   @@index([status], map: "idx_bookings_status")
   @@index([booking_type], map: "idx_bookings_type")
@@ -231,5 +232,31 @@ model users {
   travellers          travellers[]
   flight_bookings     flight_bookings[]
   hotel_bookings      hotel_bookings[]
+  payments            payments[]
   user_stats          user_stats?
 }
+
+model payments {
+  id                 Int       @id @default(autoincrement())
+  payment_id         String    @unique @db.VarChar(50)
+  booking_id         String    @db.VarChar(50)
+  user_id            Int?
+  payment_gateway    String    @default("RAZORPAY") @db.VarChar(30)
+  razorpay_order_id  String?   @db.VarChar(100)
+  razorpay_payment_id String?  @db.VarChar(100)
+  razorpay_signature  String?  @db.VarChar(255)
+  amount             Decimal   @db.Decimal(10, 2)
+  currency           String    @default("INR") @db.VarChar(10)
+  status             String    @default("SUCCESS") @db.VarChar(30)
+  payment_method     String?   @db.VarChar(50)
+  raw_response       Json?
+  created_at         DateTime? @default(now()) @db.Timestamp(6)
+  updated_at         DateTime? @default(now()) @db.Timestamp(6)
+  bookings           bookings? @relation(fields: [booking_id], references: [booking_id], onDelete: NoAction, onUpdate: NoAction)
+  users              users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([booking_id], map: "idx_payments_booking")
+  @@index([razorpay_order_id], map: "idx_payments_order")
+  @@index([user_id], map: "idx_payments_user")
+}
+
