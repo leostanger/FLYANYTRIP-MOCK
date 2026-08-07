@@ -78,22 +78,6 @@ class AdivahaHotelService {
 
       const response = await hotelClient.post('/?action=hotelSearch', body);
 
-      // ── PRICE DEBUG LOG ──────────────────────────────────────────────
-      // This logs the raw pricing fields from the first hotel returned by
-      // the Adivaha API so we can verify the correct currency and field names.
-      try {
-        const firstHotel = response.data?.responseData?.HotelLists?.HotelList?.[0];
-        if (firstHotel) {
-          const pricingDebug = {
-            hotelName: firstHotel.Name,
-            LowRate: firstHotel.LowRate,
-            HighRate: firstHotel.HighRate,
-            Currency: firstHotel.Currency,
-            currency: firstHotel.currency,
-            // Check all keys on the hotel object that might be price-related
-            allKeys: Object.keys(firstHotel),
-
-
       return response.data;
     } catch (error) {
       console.error('Hotel hotelSearch Error:', error.response?.data || error.message);
