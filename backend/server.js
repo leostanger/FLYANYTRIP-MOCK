@@ -114,5 +114,14 @@ if (require.main === module) {
   });
 }
 
-// Export app for Vercel
+// Global Process Safety Guards (Prevents Node.js Process Crash on Async Failures)
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('⚠️ Unhandled Rejection caught at process level:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('⚠️ Uncaught Exception caught at process level:', error.stack || error.message);
+});
+
+// Export app for Vercel / serverless deployments
 module.exports = app;
