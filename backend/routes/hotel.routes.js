@@ -32,7 +32,4 @@ router.get('/my-bookings', hotelController.getMyHotelBookings);
 // Utility — GET /api/hotels/invoice/:id/download
 router.get('/invoice/:id/download', hotelController.downloadInvoice);
 
-// DEBUG — POST /api/hotels/debug-pricing  (remove in production)
-router.post('/debug-pricing', hotelController.debugPricing);
-
 module.exports = router;

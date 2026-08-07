@@ -544,9 +544,7 @@ exports.debugPricing = async (req, res, next) => {
       } : null,
     };
 
-    console.log('\n======= DEBUG PRICING ENDPOINT =======');
-    console.log(JSON.stringify(pricing, null, 2));
-    console.log('=====================================\n');
+
 
     return res.status(200).json({ success: true, pricing });
   } catch (error) {
