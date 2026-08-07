@@ -258,7 +258,7 @@ export default function Footer() {
           <div className="flex flex-col gap-1.5 text-center md:text-left">
             <p className="text-gray-400 font-medium">© 2026 AnyTrip India Pvt Ltd. All rights reserved.</p>
             <p className="text-[14px] text-gray-400 font-light mt-0.5">
-              Designed & Built by <span className="text-gray-300 font-medium">Milan Pandavadra (Lead Full Stack Engineer)</span>
+              Designed & Built by <span className="text-gray-300 font-medium">Milan Viram Pandavadra (Lead Full Stack Engineer)</span>
             </p>
             <p className="flex items-center justify-center md:justify-start gap-2 text-[13px] text-gray-500 font-light mt-0.5">
               <span>IATA Certified</span>

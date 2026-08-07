@@ -9,6 +9,25 @@ const ADIVAHA_BASE_URL = 'https://api.adivaha.io/flights/api';
 const PID = process.env.ADIVAHA_PID;
 const API_KEY = process.env.ADIVAHA_API_KEY;
 
+/**
+ * Sanitize and return a valid public IP for GDS/Adivaha compliance.
+ * Rejects loopback/localhost addresses and falls back to a configured default.
+ */
+const getValidPublicIp = (ipStr) => {
+  if (!ipStr) return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
+  const clean = String(ipStr).split(',')[0].trim();
+  if (
+    clean === '127.0.0.1' ||
+    clean === '::1' ||
+    clean === '::ffff:127.0.0.1' ||
+    clean === 'localhost' ||
+    !clean
+  ) {
+    return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
+  }
+  return clean;
+};
+
 const adivahaClient = axios.create({
   baseURL: ADIVAHA_BASE_URL,
   timeout: 30000,
@@ -455,24 +474,7 @@ class AdivahaFlightService {
     }
   }
 
-  static async getFareRule(payload) {
-    try {
-      const { TraceId, ResultIndex, EndUserIp } = payload;
-      const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
-      const cleanResultIndex = String(ResultIndex || '').trim().replace(/ /g, '+');
-      const apiPayload = {
-        action: "fareRule",
-        ResultIndex: cleanResultIndex,
-        TraceId: cleanTraceId,
-        EndUserIp
-      };
-      const response = await adivahaClient.post('/', apiPayload);
-      return response.data;
-    } catch (error) {
-      console.error('Adivaha getFareRule Error:', error.response?.data || error.message);
-      throw error;
-    }
-  }
+
 
   static async getFlightFareQuote(payload) {
     try {
@@ -603,15 +605,6 @@ class AdivahaFlightService {
       const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
       const cleanResultIndex = String(ResultIndex || '').trim().replace(/ /g, '+');
 
-const getValidPublicIp = (ipStr) => {
-  if (!ipStr) return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
-  const clean = String(ipStr).split(',')[0].trim();
-  if (clean === '127.0.0.1' || clean === '::1' || clean === '::ffff:127.0.0.1' || clean === 'localhost') {
-    return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
-  }
-  return clean;
-};
-
       const mode = bookingPayload.mode || process.env.ADIVAHA_MODE || "LIVE";
       const customerIp = getValidPublicIp(bookingPayload.customerIp || bookingPayload.CustomerIp);
 
@@ -635,8 +628,6 @@ const getValidPublicIp = (ipStr) => {
 
       const reqHeaders = customerIp ? { headers: { 'Customer-IP': customerIp } } : {};
       const response = await adivahaClient.post(`/?action=${isLCC ? 'ticketForLcc' : 'flightBook'}`, apiPayload, reqHeaders);
-      console.log('ADIVAHA REQUEST PAYLOAD:', JSON.stringify(apiPayload, null, 2));
-      console.log('ADIVAHA RESPONSE DATA:', JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
       console.error(`Adivaha ${bookingPayload.isLCC ? 'ticketForLcc' : 'flightBook'} Error:`, error.response?.data || error.message);

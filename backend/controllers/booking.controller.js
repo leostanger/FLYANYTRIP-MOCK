@@ -12,6 +12,25 @@ const pdfService = require('../services/pdf.service');
 const { getInvoiceDocDefinition } = require('../utils/invoiceTemplate');
 
 /**
+ * Sanitize and return a valid public IP for GDS/Adivaha EndUserIp compliance.
+ * Rejects loopback addresses and returns a configured fallback for local dev.
+ */
+const getValidPublicIp = (req, fallback = null) => {
+    let raw = fallback || (req?.headers
+        ? (req.headers['x-forwarded-for']
+            ? String(req.headers['x-forwarded-for']).split(',')[0].trim()
+            : null)
+            || req.headers['x-real-ip']
+            || req.ip
+            || req.socket?.remoteAddress
+        : null);
+    if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1' || raw === 'localhost') {
+        return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
+    }
+    return raw;
+};
+
+/**
  * Revalidate flight (Fare Quote)
  */
 exports.revalidateBooking = async (req, res, next) => {
@@ -31,14 +50,6 @@ exports.revalidateBooking = async (req, res, next) => {
                 error: { ErrorCode: 400, ErrorMessage: 'Mock traceId rejected by server.' }
             });
         }
-
-        const getValidPublicIp = (req, fallback = null) => {
-            let raw = fallback || (req?.headers ? (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : null) || req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress : null);
-            if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1' || raw === 'localhost') {
-                return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
-            }
-            return raw;
-        };
 
         const adivahaRes = await AdivahaFlightService.getFlightFareQuote({
             TraceId: traceId,
@@ -1756,7 +1767,7 @@ exports.sendInvoiceEmail = async (req, res) => {
           <tr>
             <td style="background:#f8f9fb;padding:24px 32px;border-top:1px solid #eee;text-align:center;">
               <p style="margin:0 0 6px;font-size:13px;color:#999;">For support, contact us at <a href="mailto:support@flyanytrip.com" style="color:#E21C26;font-weight:600;">support@flyanytrip.com</a></p>
-              <p style="margin:0;font-size:13px;color:#bbb;">Have a wonderful journey! 🙏<br/><strong style="color:#E21C26;">Team AnyTrip India Pvt Ltd</strong><br/><span style="font-size:11px;color:#777;">Designed & Built by <strong>Milan Pandavadra (Lead Full Stack Engineer)</strong></span></p>
+              <p style="margin:0;font-size:13px;color:#bbb;">Have a wonderful journey! 🙏<br/><strong style="color:#E21C26;">Team AnyTrip India Pvt Ltd</strong><br/><span style="font-size:11px;color:#777;">Designed & Built by <strong>Milan Viram Pandavadra (Lead Full Stack Engineer)</strong></span></p>
             </td>
           </tr>
 
