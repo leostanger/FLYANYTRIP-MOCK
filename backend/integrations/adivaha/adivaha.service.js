@@ -14,10 +14,15 @@ const adivahaClient = axios.create({
   timeout: 30000,
   headers: {
     'Accept': 'application/json',
-    'Accept-Encoding': 'gzip',
-    'PID': PID,
-    'x-api-key': API_KEY
+    'Accept-Encoding': 'gzip'
   }
+});
+
+// Dynamically inject latest PID and API_KEY from process.env on every request
+adivahaClient.interceptors.request.use((config) => {
+  config.headers['PID'] = process.env.ADIVAHA_PID;
+  config.headers['x-api-key'] = process.env.ADIVAHA_API_KEY;
+  return config;
 });
 
 // Interceptor to handle Adivaha internal Token Management
