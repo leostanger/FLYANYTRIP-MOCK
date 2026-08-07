@@ -50,8 +50,8 @@ adivahaClient.interceptors.response.use(
             headers: {
               'Accept': 'application/json',
               'Accept-Encoding': 'gzip',
-              'PID': PID,
-              'x-api-key': API_KEY
+              'PID': process.env.ADIVAHA_PID,
+              'x-api-key': process.env.ADIVAHA_API_KEY
             }
           });
 
@@ -811,8 +811,8 @@ class AdivahaFlightService {
         headers: {
           'Accept': 'application/json',
           'Accept-Encoding': 'gzip',
-          'PID': PID,
-          'x-api-key': API_KEY
+          'PID': process.env.ADIVAHA_PID,
+          'x-api-key': process.env.ADIVAHA_API_KEY
         }
       });
       return response.data;

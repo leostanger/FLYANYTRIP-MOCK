@@ -15,11 +15,16 @@ const hotelClient = axios.create({
   headers: {
     Accept: 'application/json',
     'Accept-Encoding': 'gzip',
-    'Content-Type': 'application/json',
-    PID: PID,
-    'x-api-key': API_KEY,
+    'Content-Type': 'application/json'
   },
   timeout: 30000, // 30s — hotel searches can be slow
+});
+
+// Dynamically inject latest PID and API_KEY from process.env on every request
+hotelClient.interceptors.request.use((config) => {
+  config.headers['PID'] = process.env.ADIVAHA_PID;
+  config.headers['x-api-key'] = process.env.ADIVAHA_API_KEY;
+  return config;
 });
 
 class AdivahaHotelService {
