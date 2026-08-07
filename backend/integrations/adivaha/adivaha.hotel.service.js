@@ -92,20 +92,7 @@ class AdivahaHotelService {
             currency: firstHotel.currency,
             // Check all keys on the hotel object that might be price-related
             allKeys: Object.keys(firstHotel),
-            // Top-level response currency fields
-            responseCurrency: response.data?.responseData?.currency,
-            responseCurrencyUpper: response.data?.responseData?.Currency,
-            // Full pricing snapshot of the first hotel
-            fullFirstHotel: JSON.stringify(firstHotel).substring(0, 2000),
-          };
-          console.log('\n======= ADIVAHA HOTEL PRICE DEBUG =======');
-          console.log(JSON.stringify(pricingDebug, null, 2));
-          console.log('=========================================\n');
-        }
-      } catch (debugErr) {
-        console.warn('Price debug logging failed:', debugErr.message);
-      }
-      // ── END PRICE DEBUG ──────────────────────────────────────────────
+
 
       return response.data;
     } catch (error) {
