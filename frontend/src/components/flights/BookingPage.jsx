@@ -246,7 +246,7 @@ export default function BookingPage() {
       }
 
       // 2. Sync to backend first and wait for response using unified fetchAPI helper
-      console.log("Sending confirmation via fetchAPI to /booking/confirm...");
+      
       
       const resJson = await fetchAPI("/booking/confirm", {
         method: "POST",
@@ -316,7 +316,7 @@ export default function BookingPage() {
         })
       });
 
-      console.log("Confirmation Response:", resJson);
+
 
       if (resJson.success && resJson.data) {
         const backendBooking = resJson.data.booking;

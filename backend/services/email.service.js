@@ -314,7 +314,7 @@ class EmailService {
               <p style="margin:0;font-size:14px;color:#555;line-height:1.7;">
                 If you have any questions regarding your cancellation or refund, please reach out to our support team at 
                 <a href="mailto:support@flyanytrip.com" style="color:#E21C26;text-decoration:none;font-weight:600;">support@flyanytrip.com</a> 
-                or call us at <strong>+91-XXXXXXXXXX</strong>.
+                or call us at <strong>+91-8000-FLYTRIP</strong>.
               </p>
             </td>
           </tr>
