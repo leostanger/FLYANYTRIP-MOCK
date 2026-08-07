@@ -1,4 +1,12 @@
 require('dotenv').config();
+
+// Global BigInt serialization fix for Prisma JSON responses
+if (!BigInt.prototype.toJSON) {
+  BigInt.prototype.toJSON = function () {
+    return this.toString();
+  };
+}
+
 const { Pool } = require('pg');
 const { PrismaPg } = require('@prisma/adapter-pg');
 const { PrismaClient } = require('@prisma/client');
