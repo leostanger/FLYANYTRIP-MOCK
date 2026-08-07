@@ -364,10 +364,12 @@ export default function BookingPage() {
         setBookingData(finalBooking);
         goToStep(5);
       } else {
+        const msg = String(resJson.message || resJson.error?.ErrorMessage || "");
+        const isAuthOrSessionErr = resJson.sessionExpired || msg.toLowerCase().includes("authentication failed") || msg.toLowerCase().includes("session expired") || msg.toLowerCase().includes("invalid token");
         if (resJson.mismatchPax) {
           alert("⚠️ Traveler Count Notice\n\n" + resJson.message);
-        } else if (resJson.sessionExpired) {
-          alert("⏰ Session Expired\n\n" + (resJson.message || "Your booking session has expired. Please search again.") + "\n\nYou will be taken back to the search page.");
+        } else if (isAuthOrSessionErr) {
+          alert("⏰ Booking Session Expired\n\nYour flight booking session has expired or the fare has updated.\n\nYou will be taken back to the search page to select live flights.");
           navigate("/flights");
         } else {
           alert("Booking notice: " + (resJson.message || resJson.error?.ErrorMessage || "Unknown error. Please try again."));
@@ -375,10 +377,12 @@ export default function BookingPage() {
       }
     } catch (err) {
       console.error("Payment confirmation error:", err);
+      const errMsg = String(err.responseBody?.message || err.message || "");
+      const isAuthOrSessionErr = err.responseBody?.sessionExpired || errMsg.toLowerCase().includes("authentication failed") || errMsg.toLowerCase().includes("session expired") || errMsg.toLowerCase().includes("invalid token");
       if (err.responseBody?.mismatchPax) {
         alert("⚠️ Traveler Count Notice\n\n" + err.responseBody.message);
-      } else if (err.responseBody?.sessionExpired) {
-        alert("⏰ Session Expired\n\n" + (err.responseBody?.message || err.message || "Your booking session has expired.") + "\n\nYou will be taken back to the search page.");
+      } else if (isAuthOrSessionErr) {
+        alert("⏰ Booking Session Expired\n\nYour flight booking session has expired or the fare has updated.\n\nYou will be taken back to the search page to select live flights.");
         navigate("/flights");
       } else if (err.message?.includes("fetch") || err.message?.includes("Failed to fetch")) {
         alert("Connection error. Please ensure the server is running and try again.");

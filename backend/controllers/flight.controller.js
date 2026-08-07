@@ -335,21 +335,12 @@ const getFlightSSR = async (req, res, next) => {
     }
 
     // Fetch live Adivaha API SSR directly (SeatDynamic, Baggage, MealDynamic)
-    // Run fareQuote revalidation in parallel to prevent Vercel 10s serverless function timeout
-    const [ssrResult] = await Promise.allSettled([
-      adivahaService.getFlightSSR({ 
-        TraceId: traceId, 
-        ResultIndex: resultIndex,
-        EndUserIp: endUserIp
-      }),
-      adivahaService.getFlightFareQuote({
-        TraceId: traceId,
-        ResultIndex: resultIndex,
-        EndUserIp: endUserIp
-      }).catch(err => console.warn('Adivaha pre-SSR revalidate warning:', err.message))
-    ]);
+    const ssr = await adivahaService.getFlightSSR({ 
+      TraceId: traceId, 
+      ResultIndex: resultIndex,
+      EndUserIp: endUserIp
+    });
 
-    const ssr = ssrResult.status === 'fulfilled' ? ssrResult.value : null;
     if (!ssr) {
       throw new Error('Failed to fetch SSR details from Adivaha');
     }

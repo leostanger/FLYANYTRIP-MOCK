@@ -132,7 +132,8 @@ exports.confirmBooking = async (req, res, next) => {
         const fareDetails = flightSnapshot?.Fare || flightSnapshot?.raw?.Fare || {};
 
         let enrichedPassengers = (passengers || []).map((p, idx) => {
-            let paxType = p.PaxType ? Number(p.PaxType) : 1;
+            const hasExplicitPaxType = p.PaxType !== undefined && p.PaxType !== null && p.PaxType !== "";
+            let paxType = hasExplicitPaxType ? Number(p.PaxType) : 1;
             let rawTitle = (p.Title || "Mr").replace(/\./g, "").trim();
             const titleLower = rawTitle.toLowerCase();
 
@@ -173,26 +174,27 @@ exports.confirmBooking = async (req, res, next) => {
                 dobStr = dobStr + "T00:00:00";
             }
 
-
-            try {
-                const dob = new Date(dobStr);
-                if (!isNaN(dob.getTime())) {
-                    let age = departureDate.getFullYear() - dob.getFullYear();
-                    const m = departureDate.getMonth() - dob.getMonth();
-                    if (m < 0 || (m === 0 && departureDate.getDate() < dob.getDate())) {
-                        age--;
+            // Calculate age from DOB ONLY if PaxType was not explicitly provided by frontend
+            if (!hasExplicitPaxType) {
+                try {
+                    const dob = new Date(dobStr);
+                    if (!isNaN(dob.getTime())) {
+                        let age = departureDate.getFullYear() - dob.getFullYear();
+                        const m = departureDate.getMonth() - dob.getMonth();
+                        if (m < 0 || (m === 0 && departureDate.getDate() < dob.getDate())) {
+                            age--;
+                        }
+                        if (age < 2) {
+                            paxType = 3; // Infant (0-1)
+                        } else if (age < 12) {
+                            paxType = 2; // Child (2-11)
+                        } else {
+                            paxType = 1; // Adult (12+)
+                        }
                     }
-                    // STRICT: Adivaha requires PaxType to match exact age range at departure
-                    if (age < 2) {
-                        paxType = 3; // Infant (0-1)
-                    } else if (age < 12) {
-                        paxType = 2; // Child (2-11)
-                    } else {
-                        paxType = 1; // Adult (12+)
-                    }
+                } catch (dobErr) {
+                    console.warn("Failed to parse DOB for age calculation:", dobStr);
                 }
-            } catch (dobErr) {
-                console.warn("Failed to parse DOB for age calculation:", dobStr);
             }
 
 
@@ -446,7 +448,12 @@ exports.confirmBooking = async (req, res, next) => {
                     adivahaPayload.customerIp = customerIp;
 
                     let adivahaStatusCode = adivahaRes?.Status || adivahaRes?.status;
-                    let isSessionExpired = adivahaStatusCode === 7606 || adivahaStatusCode === '7606';
+                    const deepMsgLower = String(deepErrorMessage || '').toLowerCase();
+                    let isSessionExpired = adivahaStatusCode === 7606 || adivahaStatusCode === '7606' ||
+                        deepMsgLower.includes('authentication failed') ||
+                        deepMsgLower.includes('session expired') ||
+                        deepMsgLower.includes('invalid token') ||
+                        deepMsgLower.includes('traceid is missing');
 
                     let hasPnr = !!loopPnr;
                     let hasBookingId = !!loopProviderBookingId;
@@ -456,7 +463,7 @@ exports.confirmBooking = async (req, res, next) => {
                     let isValidBooking = isLccNormalized ? hasPnr : (hasBookingId || hasPnr);
 
                     // Section 9 & 14 Auto-Recovery: If Adivaha returns Status 7605 (Price Change), retry once with IsPriceChangeAccepted: true
-                    if ((!isValidBooking || isFailedStatus) && (adivahaStatusCode === 7605 || adivahaStatusCode === '7605')) {
+                    if ((!isValidBooking || isFailedStatus) && (adivahaStatusCode === 7605 || adivahaStatusCode === '7605' || deepMsgLower.includes('try with new fare'))) {
                         console.warn(`💡 Adivaha returned Status 7605 (Price Change). Re-attempting booking with IsPriceChangeAccepted: true...`);
                         try {
                             const retryRes = await AdivahaFlightService.bookFlight({
@@ -486,6 +493,39 @@ exports.confirmBooking = async (req, res, next) => {
                         }
                     }
 
+                    // ResultIndex Mismatch Auto-Recovery: "Invalid Result Index. ResultIndex should be same as in FareQuote Response. Session Data <SessionResultIndex>"
+                    const sessionDataMatch = String(deepErrorMessage).match(/Session Data\s+([A-Za-z0-9\[\]\/\+\=\-_]+)/i);
+                    if ((!isValidBooking || isFailedStatus) && sessionDataMatch && sessionDataMatch[1]) {
+                        const recoveredResultIndex = sessionDataMatch[1].trim().replace(/ /g, '+');
+                        console.warn(`💡 Detected TBO Session ResultIndex mismatch. Auto-recovering with Session Data ResultIndex: ${recoveredResultIndex}`);
+                        try {
+                            const retryRes = await AdivahaFlightService.bookFlight({
+                                ...adivahaPayload,
+                                ResultIndex: recoveredResultIndex,
+                                customerIp
+                            });
+                            if (retryRes) {
+                                const retryData = retryRes?.responseData?.Response || retryRes?.Response || retryRes;
+                                const retryPnr = retryData?.PNR || retryData?.Response?.PNR || (retryData?.BookingId ? String(retryData.BookingId) : null);
+                                if (retryPnr) {
+                                    adivahaRes = retryRes;
+                                    responseData = retryData;
+                                    loopPnr = retryPnr;
+                                    loopProviderBookingId = retryData?.BookingId || retryData?.Response?.BookingId || loopPnr;
+                                    adivahaStatusCode = retryRes?.Status || retryRes?.status;
+                                    isSessionExpired = false;
+                                    hasPnr = true;
+                                    hasBookingId = !!loopProviderBookingId;
+                                    isFailedStatus = false;
+                                    isValidBooking = true;
+                                    console.log(`✅ ResultIndex Mismatch Auto-Recovery Successful! New PNR: ${loopPnr}`);
+                                }
+                            }
+                        } catch (resIndexErr) {
+                            console.warn('ResultIndex Auto-Recovery attempt failed:', resIndexErr.message);
+                        }
+                    }
+
                     if (!isValidBooking || isSessionExpired || isFailedStatus) {
                         console.error(`🚨 Booking Failed: Adivaha did not return a valid PNR. Status: ${adivahaStatusCode || 'Failed'}, Message: ${deepErrorMessage || 'Unknown'}`);
                         try {
@@ -494,7 +534,7 @@ exports.confirmBooking = async (req, res, next) => {
                         } catch (logErr) {}
 
                         const userMessage = isSessionExpired
-                            ? 'Your booking session has expired. Flight prices change frequently. Please search for flights again to get fresh results.'
+                            ? (deepMsgLower.includes('fare') ? 'Flight fare or seat availability has changed. Please search for flights again to select live seats.' : 'Your booking session has expired. Flight prices and inventory change frequently. Please search for flights again.')
                             : (deepErrorMessage || 'Flight booking failed at provider (Adivaha). Please search for flights again.');
 
                         return res.status(400).json({

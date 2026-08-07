@@ -27,15 +27,19 @@ adivahaClient.interceptors.response.use(
       response.data?.Response?.Error ||
       response.data?.Error;
 
-    // ErrorCode 6 means 'Invalid Token'
-    if (errorObj && errorObj.ErrorCode === 6) {
+    const errCode = errorObj?.ErrorCode;
+    const errMsg = String(errorObj?.ErrorMessage || response.data?.status_message || '').toLowerCase();
+    const isAuthError = (errCode === 6 || errCode === 401 || errMsg.includes('authentication failed') || errMsg.includes('invalid token'));
+
+    // ErrorCode 6 means 'Invalid Token' or Auth Failed
+    if (errorObj && isAuthError) {
       const originalRequest = response.config;
 
       if (!originalRequest._retry) {
         originalRequest._retry = true;
 
         try {
-          console.log('Adivaha Token Invalid (ErrorCode 6). Generating fresh token...');
+          console.log(`Adivaha Token/Auth issue detected (${errCode || errMsg}). Generating fresh token...`);
           // Call createToken to refresh the internal token state at Adivaha
           await axios.get(`${ADIVAHA_BASE_URL}/?action=createToken`, {
             headers: {
