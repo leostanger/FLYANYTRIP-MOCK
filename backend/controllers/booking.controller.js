@@ -410,6 +410,14 @@ exports.confirmBooking = async (req, res, next) => {
                     });
 
 
+                    const customerIp = (() => {
+                        const raw = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress;
+                        if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1') {
+                            return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
+                        }
+                        return raw;
+                    })();
+
                     const adivahaPayload = {
                         isLCC: isLccNormalized,
                         TraceId: traceId,
@@ -460,8 +468,7 @@ exports.confirmBooking = async (req, res, next) => {
                     let loopTicketStatus = responseData?.TicketStatus || responseData?.Response?.TicketStatus || (isLccNormalized ? 'TICKETED' : 'BOOKED');
                     let ticketingRes = null;
 
-                    const customerIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.socket?.remoteAddress;
-                    adivahaPayload.customerIp = customerIp;
+
 
                     let adivahaStatusCode = adivahaRes?.Status || adivahaRes?.status;
                     const deepMsgLower = String(deepErrorMessage || '').toLowerCase();
@@ -544,10 +551,6 @@ exports.confirmBooking = async (req, res, next) => {
 
                     if (!isValidBooking || isSessionExpired || isFailedStatus) {
                         console.error(`🚨 Booking Failed: Adivaha did not return a valid PNR. Status: ${adivahaStatusCode || 'Failed'}, Message: ${deepErrorMessage || 'Unknown'}`);
-                        try {
-                            const fs = require('fs');
-                            fs.writeFileSync('adivaha_fail_log.json', JSON.stringify({ adivahaPayload, adivahaRes }, null, 2));
-                        } catch (logErr) {}
 
                         const userMessage = isSessionExpired
                             ? (deepMsgLower.includes('fare') ? 'Flight fare or seat availability has changed. Please search for flights again to select live seats.' : 'Your booking session has expired. Flight prices and inventory change frequently. Please search for flights again.')
