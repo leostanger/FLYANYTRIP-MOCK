@@ -258,7 +258,7 @@ export default function Footer() {
           <div className="flex flex-col gap-1.5 text-center md:text-left">
             <p className="text-gray-400 font-medium">© 2026 AnyTrip India Pvt Ltd. All rights reserved.</p>
             <p className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-[14px] text-gray-400 font-light">
-              <span>Designed & Built with <span className="text-[#ef3535]">❤️</span> by</span>
+              <span>Designed & Built by</span>
               <span className="font-semibold text-white bg-gradient-to-r from-red-500 via-amber-300 to-red-400 bg-clip-text text-transparent px-2 py-0.5 rounded bg-white/5 border border-white/10">
                 Milan Pandavadra (Lead Full Stack Engineer)
               </span>

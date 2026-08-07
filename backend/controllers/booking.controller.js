@@ -1753,7 +1753,7 @@ exports.sendInvoiceEmail = async (req, res) => {
           <tr>
             <td style="background:#f8f9fb;padding:24px 32px;border-top:1px solid #eee;text-align:center;">
               <p style="margin:0 0 6px;font-size:13px;color:#999;">For support, contact us at <a href="mailto:support@flyanytrip.com" style="color:#E21C26;font-weight:600;">support@flyanytrip.com</a></p>
-              <p style="margin:0;font-size:13px;color:#bbb;">Have a wonderful journey! 🙏<br/><strong style="color:#E21C26;">Team AnyTrip India Pvt Ltd</strong><br/><span style="font-size:11px;color:#777;">Designed & Engineered with ❤️ by <strong>Milan Pandavadra (Lead Full Stack Engineer)</strong></span></p>
+              <p style="margin:0;font-size:13px;color:#bbb;">Have a wonderful journey! 🙏<br/><strong style="color:#E21C26;">Team AnyTrip India Pvt Ltd</strong><br/><span style="font-size:11px;color:#777;">Designed & Built by <strong>Milan Pandavadra (Lead Full Stack Engineer)</strong></span></p>
             </td>
           </tr>
 
