@@ -141,9 +141,23 @@ export default function ResultPage() {
         if (!matchesAirline) return false;
       }
   
+      // Helper to accurately parse hour from 12-hour (AM/PM) or 24-hour time strings
+      const parseHour = (timeStr) => {
+        if (!timeStr) return 0;
+        const str = String(timeStr).trim().toUpperCase();
+        const isPM = str.includes("PM");
+        const isAM = str.includes("AM");
+        const match = str.match(/(\d{1,2}):(\d{2})/);
+        if (!match) return 0;
+        let h = parseInt(match[1], 10);
+        if (isPM && h < 12) h += 12;
+        if (isAM && h === 12) h = 0;
+        return h;
+      };
+
       // 4. Departure Time filter
       if (selectedDeparture.length > 0) {
-        const hour = parseInt((flight.departTime || "00").split(":")[0], 10) || 0;
+        const hour = parseHour(flight.departTime || flight.time);
         const matchesDep = selectedDeparture.some((d) => {
           if (d === "dep-early") return hour >= 0 && hour < 6;
           if (d === "dep-morning") return hour >= 6 && hour < 12;
@@ -156,7 +170,7 @@ export default function ResultPage() {
   
       // 5. Arrival Time filter
       if (selectedArrival.length > 0) {
-        const hour = parseInt((flight.arrivalTime || "00").split(":")[0], 10) || 0;
+        const hour = parseHour(flight.arrivalTime || flight.arrival);
         const matchesArr = selectedArrival.some((a) => {
           if (a === "arr-early") return hour >= 0 && hour < 6;
           if (a === "arr-morning") return hour >= 6 && hour < 12;
