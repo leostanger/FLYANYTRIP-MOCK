@@ -38,7 +38,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://flyanytrip-frontend.vercel.app',
-  process.env.FRONTEND_URL
+  process.env.FRONTEND_URL,
+  process.env.CORS_ORIGIN
 ].filter(Boolean);
 
 // Enable standard CORS middleware with dynamic origin validation
@@ -49,9 +50,12 @@ app.use(cors({
     const isAllowed = allowedOrigins.includes(origin) || 
                       origin.startsWith('http://localhost:') || 
                       origin.startsWith('http://127.0.0.1:') || 
-                      origin.endsWith('.vercel.app');
+                      origin.endsWith('.vercel.app') ||
+                      origin.endsWith('.netlify.app') ||
+                      origin.endsWith('.pages.dev') ||
+                      origin.includes('flyanytrip');
                       
-    if (isAllowed) {
+    if (isAllowed || process.env.NODE_ENV !== 'production' || process.env.CORS_ORIGIN === '*') {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

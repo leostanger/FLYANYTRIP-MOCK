@@ -10,9 +10,9 @@ import PackageSummaryBar from '../components/booking/PackageSummaryBar'
 import FareSummaryCard from '../components/booking/FareSummaryCard'
 import MealPreferenceCard, { MEAL_OPTIONS } from '../components/booking/MealPreferenceCard'
 import AddOnServiceCard from '../components/booking/AddOnServiceCard'
-import InsuranceCard from '../components/booking/InsuranceCard'
+import { getApiBaseUrl } from '../../../services/api'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = getApiBaseUrl()
 
 export default function ToursPersonalize() {
   const { id = 1 } = useParams()

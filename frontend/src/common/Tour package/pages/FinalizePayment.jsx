@@ -14,9 +14,9 @@ import gpayLogo from '../assets/gpay.svg'
 import phonepeLogo from '../assets/phonepay.svg'
 import paytmLogo from '../assets/paytm.svg'
 import bhimLogo from '../assets/bhim.svg'
-import qrCodeImage from '../assets/QR.svg'
+import { getApiBaseUrl } from '../../../services/api'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = getApiBaseUrl()
 
 const COUPONS = [
   { code: 'HDFC15', discount: 1500, label: 'HDFC15' },

@@ -10,8 +10,10 @@ import PackageSummaryBar from '../components/booking/PackageSummaryBar'
 import FareSummaryCard from '../components/booking/FareSummaryCard'
 import TravelerForm from '../components/booking/TravelerForm'
 
+import { getApiBaseUrl } from '../../../services/api'
+
 // API base URL configured via environment or local backend server
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = getApiBaseUrl()
 
 // Input field styles matching Figma node 7-10159
 const inputClass = (err) =>
