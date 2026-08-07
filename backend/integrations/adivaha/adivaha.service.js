@@ -589,6 +589,7 @@ class AdivahaFlightService {
         isoneway: isoneway || "Yes",
         isDomestic: isDomestic || "Yes",
         IsDomesticReturn: IsDomesticReturn || "No",
+        EndUserIp: customerIp || "127.0.0.1",
         Passengers,
         ContactDetails
       };
@@ -642,6 +643,7 @@ class AdivahaFlightService {
         isoneway: isoneway || "Yes",
         isDomestic: isDomestic || "Yes",
         IsDomesticReturn: IsDomesticReturn || "No",
+        EndUserIp: customerIp || "127.0.0.1",
         Passengers
       };
 

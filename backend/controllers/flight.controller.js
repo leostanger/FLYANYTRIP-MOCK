@@ -34,7 +34,7 @@ const searchFlights = async (req, res, next) => {
       searchResults = await adivahaService.searchFlights(searchParams);
     } catch (apiError) {
       console.error('Adivaha API failed:', apiError.message);
-      return res.status(500).json({ success: false, message: 'some error has occured' });
+      return res.status(500).json({ success: false, message: apiError.message || 'Flight search service error' });
     }
 
     if (!searchResults || !searchResults.flights || searchResults.flights.length === 0) {
@@ -85,7 +85,7 @@ const searchMultiCityFlights = async (req, res, next) => {
       searchResults = await adivahaService.multicityFlightSearch(searchParams);
     } catch (apiError) {
       console.error('Adivaha Multi-City API failed:', apiError.message);
-      return res.status(500).json({ success: false, message: 'some error has occured' });
+      return res.status(500).json({ success: false, message: apiError.message || 'Flight search service error' });
     }
 
     if (!searchResults || !searchResults.flights || searchResults.flights.length === 0) {
@@ -128,7 +128,7 @@ const searchLocations = async (req, res, next) => {
       locations = await adivahaService.searchLocations(term, 10);
     } catch (apiError) {
       console.error('Adivaha Search Locations failed:', apiError.message);
-      return res.status(500).json({ success: false, message: 'some error has occured' });
+      return res.status(500).json({ success: false, message: apiError.message || 'Flight search service error' });
     }
 
     if (!locations || locations.ErrorCode || (locations.airports && locations.airports.length === 0)) {
@@ -165,7 +165,7 @@ const getCalendarFare = async (req, res, next) => {
       result = await adivahaService.getCalendarFare({ origin, destination, departureDate, cabinClass });
     } catch (apiError) {
       console.error('Adivaha Calendar Fare API failed/timed out:', apiError.message);
-      return res.status(500).json({ success: false, message: 'some error has occured' });
+      return res.status(500).json({ success: false, message: apiError.message || 'Flight search service error' });
     }
     
     // Check if response contains valid results - handle multiple possible response structures
@@ -232,7 +232,7 @@ const updateCalendarFareOfDay = async (req, res, next) => {
       result = await adivahaService.updateCalendarFareOfDay({ origin, destination, departureDate, cabinClass });
     } catch (apiError) {
       console.error('Adivaha updateCalendarFareOfDay failed:', apiError.message);
-      return res.status(500).json({ success: false, message: 'some error has occured' });
+      return res.status(500).json({ success: false, message: apiError.message || 'Flight search service error' });
     }
     
     // Try multiple response paths for DayFare

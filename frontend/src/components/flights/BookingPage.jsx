@@ -275,6 +275,10 @@ export default function BookingPage() {
               LastName: p.lastName || "Sharma",
               DateOfBirth: p.dob || defaultDob,
               PaxType: paxType,
+              ContactNo: p.mobile || p.contactNo || contactDetails.mobile || "9999999999",
+              Email: p.email || contactDetails.email || "guest@flyanytrip.com",
+              PassportNo: p.passportNo || undefined,
+              PassportExpiry: p.passportExpiry || undefined,
               Nationality: (p.nationality || "IN").substring(0, 2).toUpperCase(),
               Seat: pSeat ? { Code: pSeat } : undefined
             };
