@@ -383,6 +383,14 @@ export default function ResultPage() {
           setLiveFlights(transformed);
           setLiveOutboundFlights([]);
           setLiveInboundFlights([]);
+
+          // Dynamically adjust maxPrice slider ceiling if flight prices exceed current slider limit
+          if (transformed.length > 0) {
+            const maxVal = Math.max(...transformed.map(f => parseInt(String(f.price || "0").replace(/[^\d]/g, ""), 10) || 0));
+            if (maxVal > 50000) {
+              setMaxPrice(Math.ceil(maxVal / 10000) * 10000 + 20000);
+            }
+          }
           
           if (transformed.length > 0) {
             sessionStorage.setItem('lastFlightSearchUrl', window.location.pathname + window.location.search);

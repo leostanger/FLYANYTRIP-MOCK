@@ -1634,7 +1634,7 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
                   departureDate: leg.date,
                   travelClass: flightCabinClass
                 }))
-                navigate(`/flights?tripType=multi-city&segments=${encodeURIComponent(JSON.stringify(segments))}&adults=${flightAdults}&children=${flightChildren}&cabinClass=${encodeURIComponent(flightCabinClass)}`)
+                navigate(`/flights?tripType=multi-city&segments=${encodeURIComponent(JSON.stringify(segments))}&adults=${flightAdults}&children=${flightChildren}&infants=${flightInfants}&cabinClass=${encodeURIComponent(flightCabinClass)}`)
               } else {
                 const origin = fromLoc.code || 'DEL';
                 const destination = toLoc.code || 'BOM';
@@ -1642,7 +1642,7 @@ export default function BookingCard({ activeTab = 'flights', setActiveTab }) {
                   alert('Origin and destination airport cannot be the same.');
                   return;
                 }
-                navigate(`/flights?origin=${origin}&destination=${destination}&departureDate=${flightDepDate}&returnDate=${flightRetDate}&adults=${flightAdults}&children=${flightChildren}&cabinClass=${encodeURIComponent(flightCabinClass)}&tripType=${tripType}`);
+                navigate(`/flights?origin=${origin}&destination=${destination}&departureDate=${flightDepDate}&returnDate=${flightRetDate}&adults=${flightAdults}&children=${flightChildren}&infants=${flightInfants}&cabinClass=${encodeURIComponent(flightCabinClass)}&tripType=${tripType}`);
               }
             }}
             className="flex-1 flex items-center justify-center gap-[10px] bg-[#e53935] hover:bg-red-700 text-white rounded-[16px] font-semibold border-none cursor-pointer h-full px-[20px] transition-colors shadow-sm"
