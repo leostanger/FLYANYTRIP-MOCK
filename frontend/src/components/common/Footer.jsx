@@ -255,9 +255,15 @@ export default function Footer() {
       {/* ── Copyright Footer ── */}
       <div className="border-t border-white/10 bg-black/45 py-8 relative z-10">
         <div className="max-w-[1400px] mx-auto px-4 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6 text-[16px] text-gray-500">
-          <div className="flex flex-col gap-1 text-center md:text-left">
-            <p className="text-gray-400 font-medium">© 2026 FlyAnyTrip Pvt. Ltd. All rights reserved.</p>
-            <p className="flex items-center justify-center md:justify-start gap-2 text-[14px] text-gray-500 mt-1 font-light">
+          <div className="flex flex-col gap-1.5 text-center md:text-left">
+            <p className="text-gray-400 font-medium">© 2026 AnyTrip India Pvt Ltd. All rights reserved.</p>
+            <p className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-[14px] text-gray-400 font-light">
+              <span>Designed & Built with <span className="text-[#ef3535]">❤️</span> by</span>
+              <span className="font-semibold text-white bg-gradient-to-r from-red-500 via-amber-300 to-red-400 bg-clip-text text-transparent px-2 py-0.5 rounded bg-white/5 border border-white/10">
+                Milan Pandavadra (Lead Full Stack Engineer)
+              </span>
+            </p>
+            <p className="flex items-center justify-center md:justify-start gap-2 text-[13px] text-gray-500 font-light mt-0.5">
               <span>IATA Certified</span>
               <span className="text-[#ef3535] font-bold">•</span>
               <span>PCI DSS Level 1</span>

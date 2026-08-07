@@ -16,9 +16,7 @@ export default function BookingSeat({ flight, passengers = [], onContinue, onSea
   ];
 
   const [activePaxIdx, setActivePaxIdx] = useState(0);
-  const [paxSeats, setPaxSeats] = useState({
-    0: { seat: "12A", price: 350 }
-  });
+  const [paxSeats, setPaxSeats] = useState({});
   const [liveSsrSeats, setLiveSsrSeats] = useState(null);
   const [isLiveSsr, setIsLiveSsr] = useState(false);
   const [ssrLoading, setSsrLoading] = useState(false);

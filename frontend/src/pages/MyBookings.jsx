@@ -191,7 +191,7 @@ export default function MyBookings() {
   // Handle Cancellation Status update
   const handleCheckCancelStatus = async (trip) => {
     if (!trip.isRealBooking || !trip.changeRequestId) {
-      showToast('Status check not available for mock bookings.');
+      showToast('Status check not available for this booking status.');
       return;
     }
     
@@ -228,7 +228,7 @@ export default function MyBookings() {
   // Handle Hold release request
   const handleReleaseHoldBooking = async (trip) => {
     if (!trip.isRealBooking) {
-      showToast('Hold release not available for mock bookings.');
+      showToast('Hold release not available for this booking status.');
       return;
     }
 
@@ -263,9 +263,11 @@ export default function MyBookings() {
   };
 
   const handleDownloadTicket = (trip) => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+    const rawApiUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+    const baseUrl = rawApiUrl.startsWith('http') ? rawApiUrl : `${window.location.origin}${rawApiUrl.startsWith('/') ? '' : '/'}${rawApiUrl}`;
+    const invoiceUrl = `${baseUrl.replace(/\/+$/, '')}/booking/invoice/${trip.id}/download`;
     showToast(`Generating and downloading ticket PDF for ${trip.pnr || trip.flightNum}...`);
-    window.open(`${API_BASE_URL}/booking/invoice/${trip.id}/download`, '_blank');
+    window.open(invoiceUrl, '_blank');
   };
 
   // Handle Esc key close

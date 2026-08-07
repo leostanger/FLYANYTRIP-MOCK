@@ -142,14 +142,22 @@ class AdivahaFlightService {
         'First Class': 'First'
       };
 
+      const cleanIata = (str) => {
+        if (!str) return "";
+        const match = String(str).match(/[A-Z]{3}/i);
+        return match ? match[0].toUpperCase() : String(str).trim().substring(0, 3).toUpperCase();
+      };
+
+      const isOneWay = !returnDate || (tripType === 'oneway' || tripType === 'one' || tripType === 'one-way' || tripType === 'one_way');
+
       const payload = {
         action: "flightSearch",
         adults: String(adults),
         children: String(children),
         infants: String(infants),
-        isoneway: (tripType === 'oneway' || tripType === 'one' || tripType === 'one-way' || tripType === 'one_way') ? "Yes" : "No",
-        From_IATACODE: origin,
-        To_IATACODE: destination,
+        isoneway: isOneWay ? "Yes" : "No",
+        From_IATACODE: cleanIata(origin),
+        To_IATACODE: cleanIata(destination),
         departure_date: formatDate(departureDate),
         return_date: (tripType === 'round' || tripType === 'round-trip' || tripType === 'roundtrip') && returnDate ? formatDate(returnDate) : "",
         Flights_category: categoryMap[searchPayload.cabinClass] || "Economy"
@@ -183,7 +191,7 @@ class AdivahaFlightService {
           inboundRaw = resultsArray[1];
         } else if (Array.isArray(resultsArray[0])) {
           outboundRaw = resultsArray[0];
-        } else if (resultsArray[0] && typeof resultsArray[0] === 'object') {
+        } else if (resultsArray[0] && typeof resultsArray[0] === 'object' && !resultsArray[0].ResultIndex && !resultsArray[0].Segments) {
           outboundRaw = Object.values(resultsArray[0]);
         } else {
           outboundRaw = resultsArray;
@@ -310,9 +318,15 @@ class AdivahaFlightService {
         'First Class': 6
       };
 
+      const cleanIata = (str) => {
+        if (!str) return "";
+        const match = String(str).match(/[A-Z]{3}/i);
+        return match ? match[0].toUpperCase() : String(str).trim().substring(0, 3).toUpperCase();
+      };
+
       const mappedSegments = segments.map(seg => ({
-        Origin: seg.from,
-        Destination: seg.to,
+        Origin: cleanIata(seg.from || seg.origin),
+        Destination: cleanIata(seg.to || seg.destination),
         FlightCabinClass: categoryMap[seg.travelClass || 'Economy'] || 2,
         PreferredDepartureTime: formatDate(seg.departureDate),
         PreferredArrivalTime: formatDate(seg.departureDate)
@@ -348,7 +362,7 @@ class AdivahaFlightService {
       if (resultsArray && resultsArray.length > 0) {
         if (Array.isArray(resultsArray[0])) {
           resultsArray = resultsArray[0];
-        } else if (resultsArray[0] && typeof resultsArray[0] === 'object') {
+        } else if (resultsArray[0] && typeof resultsArray[0] === 'object' && !resultsArray[0].ResultIndex && !resultsArray[0].Segments) {
           resultsArray = Object.values(resultsArray[0]);
         }
 
@@ -502,10 +516,16 @@ class AdivahaFlightService {
         'First Class': 'First'
       };
 
+      const cleanIata = (str) => {
+        if (!str) return "";
+        const match = String(str).match(/[A-Z]{3}/i);
+        return match ? match[0].toUpperCase() : String(str).trim().substring(0, 3).toUpperCase();
+      };
+
       const apiPayload = {
         action: "GetCalendarFare",
-        From_IATACODE: origin,
-        To_IATACODE: destination,
+        From_IATACODE: cleanIata(origin),
+        To_IATACODE: cleanIata(destination),
         departure_date: formatDate(departureDate),
         flights_category: categoryMap[cabinClass] || "Economy"
       };
@@ -540,10 +560,16 @@ class AdivahaFlightService {
         'First Class': 'First'
       };
 
+      const cleanIata = (str) => {
+        if (!str) return "";
+        const match = String(str).match(/[A-Z]{3}/i);
+        return match ? match[0].toUpperCase() : String(str).trim().substring(0, 3).toUpperCase();
+      };
+
       const apiPayload = {
         action: "UpdateCalendarFareOfDay",
-        From_IATACODE: origin,
-        To_IATACODE: destination,
+        From_IATACODE: cleanIata(origin),
+        To_IATACODE: cleanIata(destination),
         departure_date: formatDate(departureDate),
         Flights_category: categoryMap[cabinClass] || "Economy"
       };
@@ -577,8 +603,17 @@ class AdivahaFlightService {
       const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
       const cleanResultIndex = String(ResultIndex || '').trim().replace(/ /g, '+');
 
+const getValidPublicIp = (ipStr) => {
+  if (!ipStr) return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
+  const clean = String(ipStr).split(',')[0].trim();
+  if (clean === '127.0.0.1' || clean === '::1' || clean === '::ffff:127.0.0.1' || clean === 'localhost') {
+    return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
+  }
+  return clean;
+};
+
       const mode = bookingPayload.mode || process.env.ADIVAHA_MODE || "LIVE";
-      const customerIp = bookingPayload.customerIp || bookingPayload.CustomerIp;
+      const customerIp = getValidPublicIp(bookingPayload.customerIp || bookingPayload.CustomerIp);
 
       const apiPayload = {
         action: isLCC ? "ticketForLcc" : "flightBook",
@@ -589,7 +624,7 @@ class AdivahaFlightService {
         isoneway: isoneway || "Yes",
         isDomestic: isDomestic || "Yes",
         IsDomesticReturn: IsDomesticReturn || "No",
-        EndUserIp: customerIp || "127.0.0.1",
+        EndUserIp: customerIp,
         Passengers,
         ContactDetails
       };
@@ -632,18 +667,22 @@ class AdivahaFlightService {
 
       const mode = ticketingPayload.mode || process.env.ADIVAHA_MODE || "LIVE";
 
+      const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
+
+      const validCustomerIp = getValidPublicIp(customerIp);
+
       const apiPayload = {
         action: "ticket",
         mode,
         PNR,
         BookingId,
         order_id,
-        TraceId,
+        TraceId: cleanTraceId,
         IsLCC: "0",
         isoneway: isoneway || "Yes",
         isDomestic: isDomestic || "Yes",
         IsDomesticReturn: IsDomesticReturn || "No",
-        EndUserIp: customerIp || "127.0.0.1",
+        EndUserIp: validCustomerIp,
         Passengers
       };
 
@@ -651,7 +690,7 @@ class AdivahaFlightService {
         apiPayload.IsPriceChangeAccepted = IsPriceChangeAccepted;
       }
 
-      const reqHeaders = customerIp ? { headers: { 'Customer-IP': customerIp } } : {};
+      const reqHeaders = validCustomerIp ? { headers: { 'Customer-IP': validCustomerIp } } : {};
       const response = await adivahaClient.post('/?action=ticket', apiPayload, reqHeaders);
       return response.data;
     } catch (error) {
@@ -667,11 +706,13 @@ class AdivahaFlightService {
   static async getFlightSSR(payload) {
     try {
       const { TraceId, ResultIndex, EndUserIp } = payload;
+      const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
+      const cleanResultIndex = String(ResultIndex || '').trim().replace(/ /g, '+');
       const apiPayload = {
         action: "flightSSR",
-        ResultIndex,
-        TraceId,
-        EndUserIp
+        ResultIndex: cleanResultIndex,
+        TraceId: cleanTraceId,
+        EndUserIp: getValidPublicIp(EndUserIp)
       };
       const response = await adivahaClient.post('/', apiPayload);
       return response.data;
@@ -687,11 +728,13 @@ class AdivahaFlightService {
    */
   static async getBookingDetails(payload) {
     try {
+      const cleanTraceId = String(payload.TraceId || '').trim().replace(/ /g, '+');
       const apiPayload = {
         action: "getBookingDetails",
-        TraceId: payload.TraceId,
+        TraceId: cleanTraceId,
         BookingId: String(payload.BookingId),
-        PNR: payload.PNR
+        PNR: payload.PNR,
+        EndUserIp: getValidPublicIp(payload.EndUserIp || payload.customerIp)
       };
       const response = await adivahaClient.post('/?action=getBookingDetails', apiPayload);
       return response.data;
@@ -710,7 +753,8 @@ class AdivahaFlightService {
       const apiPayload = {
         action: "getCancellationCharges",
         BookingId: String(payload.BookingId),
-        RequestType: String(payload.RequestType || 1)
+        RequestType: String(payload.RequestType || 1),
+        EndUserIp: getValidPublicIp(payload.EndUserIp || payload.customerIp)
       };
       const response = await adivahaClient.post('/?action=getCancellationCharges', apiPayload);
       return response.data;
@@ -726,17 +770,18 @@ class AdivahaFlightService {
    */
   static async cancelBooking(payload) {
     try {
+      const crd = payload.ChangeRequestData || payload;
       const apiPayload = {
         action: "ticketCancel",
-        order_id: payload.order_id,
+        order_id: payload.order_id || crd.order_id || "UNKNOWN",
         ChangeRequestData: {
-          BookingId: Number(payload.ChangeRequestData.BookingId),
-          RequestType: Number(payload.ChangeRequestData.RequestType ?? 1),
-          CancellationType: Number(payload.ChangeRequestData.CancellationType ?? 0),
-          Sectors: payload.ChangeRequestData.Sectors || [],
-          TicketId: payload.ChangeRequestData.TicketId || [],
-          Remarks: payload.ChangeRequestData.Remarks || 'Customer request',
-          EndUserIp: payload.ChangeRequestData.EndUserIp || '127.0.0.1'
+          BookingId: Number(crd.BookingId),
+          RequestType: Number(crd.RequestType ?? 1),
+          CancellationType: Number(crd.CancellationType ?? 0),
+          Sectors: crd.Sectors || [],
+          TicketId: crd.TicketId || [],
+          Remarks: crd.Remarks || 'Customer request',
+          EndUserIp: getValidPublicIp(crd.EndUserIp || crd.customerIp)
         }
       };
       const response = await adivahaClient.post('/?action=ticketCancel', apiPayload);

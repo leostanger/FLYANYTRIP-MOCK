@@ -32,10 +32,18 @@ exports.revalidateBooking = async (req, res, next) => {
             });
         }
 
+        const getValidPublicIp = (req, fallback = null) => {
+            let raw = fallback || (req?.headers ? (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : null) || req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress : null);
+            if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1' || raw === 'localhost') {
+                return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
+            }
+            return raw;
+        };
+
         const adivahaRes = await AdivahaFlightService.getFlightFareQuote({
             TraceId: traceId,
             ResultIndex: resultIndex,
-            EndUserIp: EndUserIp || '127.0.0.1' // Provide default IP if none passed
+            EndUserIp: getValidPublicIp(req, EndUserIp)
         });
 
         res.status(200).json({ success: true, data: adivahaRes });
@@ -334,10 +342,11 @@ exports.confirmBooking = async (req, res, next) => {
                     if (!isLccNormalized) {
                         try {
                             console.log(`Revalidating fare with FareQuote before booking for Non-LCC ResultIndex ${rIdx}...`);
+                            const customerIp = getValidPublicIp(req);
                             const quoteRes = await AdivahaFlightService.getFlightFareQuote({
-                                TraceId: traceId,
+                                TraceId: cleanTraceId,
                                 ResultIndex: activeResultIndex,
-                                EndUserIp: '127.0.0.1'
+                                EndUserIp: customerIp
                             });
 
                             const quoteResponseData = quoteRes?.responseData?.Response || quoteRes?.Response || quoteRes;
@@ -409,7 +418,8 @@ exports.confirmBooking = async (req, res, next) => {
                         ContactDetails: normalizedContactDetails,
                         isoneway,
                         isDomestic,
-                        IsDomesticReturn
+                        IsDomesticReturn,
+                        customerIp: customerIp
                     };
 
                     let adivahaRes;
@@ -557,11 +567,12 @@ exports.confirmBooking = async (req, res, next) => {
                                 PNR: loopPnr,
                                 BookingId: loopProviderBookingId,
                                 order_id: `ORD-${Date.now()}-${i}`,
-                                TraceId: traceId,
+                                TraceId: cleanTraceId,
                                 isoneway,
                                 isDomestic,
                                 IsDomesticReturn,
-                                Passengers: loopPassengers
+                                Passengers: loopPassengers,
+                                customerIp: customerIp
                             });
                             ticketingResList.push(ticketingRes);
                             if (!finalTicketingRes) finalTicketingRes = ticketingRes;
@@ -609,22 +620,29 @@ exports.confirmBooking = async (req, res, next) => {
 
         try {
             if (!actualUserId && normalizedContactDetails.Email) {
-                let user = await prisma.users.findUnique({
-                    where: { email: normalizedContactDetails.Email }
+                const cleanEmail = String(normalizedContactDetails.Email).trim().toLowerCase();
+                let user = await prisma.users.findFirst({
+                    where: { email: { equals: cleanEmail, mode: 'insensitive' } }
                 });
 
                 if (!user) {
-                    user = await prisma.users.create({
-                        data: {
-                            email: normalizedContactDetails.Email ? String(normalizedContactDetails.Email).substring(0, 255) : '',
-                            phone: normalizedContactDetails.ContactNo ? String(normalizedContactDetails.ContactNo).substring(0, 20) : null,
-                            first_name: enrichedPassengers?.[0]?.FirstName ? String(enrichedPassengers[0].FirstName).substring(0, 100) : 'Guest',
-                            last_name: enrichedPassengers?.[0]?.LastName ? String(enrichedPassengers[0].LastName).substring(0, 100) : 'User',
-                            user_type: 'GUEST'
-                        }
-                    });
+                    try {
+                        user = await prisma.users.create({
+                            data: {
+                                email: cleanEmail.substring(0, 255),
+                                phone: normalizedContactDetails.ContactNo ? String(normalizedContactDetails.ContactNo).substring(0, 20) : null,
+                                first_name: enrichedPassengers?.[0]?.FirstName ? String(enrichedPassengers[0].FirstName).substring(0, 100) : 'Guest',
+                                last_name: enrichedPassengers?.[0]?.LastName ? String(enrichedPassengers[0].LastName).substring(0, 100) : 'User',
+                                user_type: 'GUEST'
+                            }
+                        });
+                    } catch (userCreateErr) {
+                        user = await prisma.users.findFirst({
+                            where: { email: { equals: cleanEmail, mode: 'insensitive' } }
+                        });
+                    }
                 }
-                actualUserId = user.id;
+                if (user) actualUserId = user.id;
             }
 
             // 3. Save the Booking to Prisma Database inside a Transaction
@@ -649,13 +667,27 @@ exports.confirmBooking = async (req, res, next) => {
                         provider_booking_id: parseInt(providerBookingId) || 0,
                         provider_order_id: String(paymentData?.razorpay_order_id || 'UNKNOWN').substring(0, 100),
                         trace_id: traceId ? String(traceId).substring(0, 255) : null,
-                        pnr: pnr ? String(pnr).substring(0, 20) : null,
+                        pnr: pnr ? String(pnr).substring(0, 255) : null,
                         validating_airline: String(flightSnapshot?.airlineCode || 'XX').substring(0, 10),
-                        origin_airport: String(flightSnapshot?.from || 'XXX').substring(0, 10),
-                        destination_airport: String(flightSnapshot?.to || 'XXX').substring(0, 10),
-                        departure_date: flightSnapshot?.raw?.Segments?.[0]?.[0]?.Origin?.DepTime
-                            ? new Date(flightSnapshot.raw.Segments[0][0].Origin.DepTime)
-                            : new Date(),
+                        origin_airport: (() => {
+                            const match = String(flightSnapshot?.from || flightSnapshot?.origin || 'DEL').match(/[A-Z]{3}/i);
+                            return match ? match[0].toUpperCase() : 'DEL';
+                        })(),
+                        destination_airport: (() => {
+                            const match = String(flightSnapshot?.to || flightSnapshot?.destination || 'BOM').match(/[A-Z]{3}/i);
+                            return match ? match[0].toUpperCase() : 'BOM';
+                        })(),
+                        departure_date: (() => {
+                            const rawDepTime = 
+                                flightSnapshot?.raw?.Segments?.[0]?.[0]?.Origin?.DepTime ||
+                                flightSnapshot?.raw?.Segments?.[0]?.Origin?.DepTime ||
+                                flightSnapshot?.departureTime ||
+                                flightSnapshot?.departDate ||
+                                flightSnapshot?.departure_date;
+                            return (rawDepTime && !isNaN(new Date(rawDepTime).getTime()))
+                                ? new Date(rawDepTime)
+                                : new Date();
+                        })(),
                         total_fare: totalAmount || (flightSnapshot?.price ? parseFloat(String(flightSnapshot.price).replace(/,/g, '')) : 0),
                         offered_fare: totalAmount || (flightSnapshot?.price ? parseFloat(String(flightSnapshot.price).replace(/,/g, '')) : 0),
                         currency: 'INR',
@@ -675,7 +707,7 @@ exports.confirmBooking = async (req, res, next) => {
                                 return {
                                     firstName: p.FirstName,
                                     lastName: p.LastName,
-                                    gender: p.Gender === 2 ? 'Female' : 'Male',
+                                    gender: (String(p.Gender) === '2' || String(p.Gender).toLowerCase() === 'female') ? 'Female' : 'Male',
                                     dob: p.DateOfBirth || 'N/A',
                                     passportNo: p.PassportNo || 'N/A',
                                     passportExpiry: p.PassportExpiry || 'N/A',
@@ -704,7 +736,7 @@ exports.confirmBooking = async (req, res, next) => {
                             pax_index: idx,
                             first_name: p.FirstName ? String(p.FirstName).substring(0, 100) : null,
                             last_name: p.LastName ? String(p.LastName).substring(0, 100) : null,
-                            gender: p.Gender === 2 ? 'Female' : 'Male',
+                            gender: (String(p.Gender) === '2' || String(p.Gender).toLowerCase() === 'female') ? 'Female' : 'Male',
                             date_of_birth: p.DateOfBirth ? String(p.DateOfBirth).substring(0, 20) : null,
                             pax_type: parseInt(p.PaxType, 10) || 1,
                             passport_no: p.PassportNo ? String(p.PassportNo).substring(0, 50) : null,
@@ -876,7 +908,11 @@ exports.getBookingDetails = async (req, res, next) => {
         let booking = await prisma.bookings.findUnique({
             where: { booking_id: id },
             include: {
-                flight_bookings: true,
+                flight_bookings: {
+                    include: {
+                        passengers: { orderBy: { pax_index: 'asc' } }
+                    }
+                },
                 users: {
                     select: { first_name: true, last_name: true, email: true, phone: true }
                 }
@@ -894,7 +930,8 @@ exports.getBookingDetails = async (req, res, next) => {
                                 select: { first_name: true, last_name: true, email: true, phone: true }
                             }
                         }
-                    }
+                    },
+                    passengers: { orderBy: { pax_index: 'asc' } }
                 }
             });
 
@@ -1125,9 +1162,10 @@ exports.requestCancellation = async (req, res, next) => {
         // Call Adivaha API to request cancellation
         let adivahaRes;
         let apiFailed = false;
+        const customerIp = getValidPublicIp(req, endUserIp);
         try {
             adivahaRes = await AdivahaFlightService.cancelBooking({
-                order_id: adivahaOrderId,
+                order_id: (adivahaOrderId && adivahaOrderId !== 'UNKNOWN') ? adivahaOrderId : providerBookingId,
                 ChangeRequestData: {
                     BookingId: providerBookingId,
                     RequestType: 1, // Full cancellation
@@ -1135,7 +1173,7 @@ exports.requestCancellation = async (req, res, next) => {
                     Sectors: sectors,
                     TicketId: ticketIds,
                     Remarks: remarks || 'Customer request via FlyAnyTrip website',
-                    EndUserIp: endUserIp || '127.0.0.1'
+                    EndUserIp: customerIp
                 }
             });
         } catch (apiErr) {
@@ -1329,8 +1367,9 @@ exports.downloadInvoice = async (req, res, next) => {
         const { id } = req.params;
         let invoiceData;
 
+        let booking = null;
         try {
-            const booking = await prisma.bookings.findUnique({
+            booking = await prisma.bookings.findUnique({
                 where: { booking_id: id },
                 include: {
                     flight_bookings: {
@@ -1346,6 +1385,23 @@ exports.downloadInvoice = async (req, res, next) => {
                 }
             });
 
+            if (!booking) {
+                const fbRecord = await prisma.flight_bookings.findFirst({
+                    where: { pnr: id },
+                    include: {
+                        bookings: {
+                            include: {
+                                users: { select: { first_name: true, last_name: true, email: true, phone: true } }
+                            }
+                        },
+                        passengers: { orderBy: { pax_index: 'asc' } }
+                    }
+                });
+                if (fbRecord && fbRecord.bookings) {
+                    booking = fbRecord.bookings;
+                    booking.flight_bookings = fbRecord;
+                }
+            }
 
             if (booking && booking.flight_bookings) {
                 const fb = booking.flight_bookings;
@@ -1409,7 +1465,6 @@ exports.downloadInvoice = async (req, res, next) => {
                 const rawTotal = booking.total_amount ? parseFloat(booking.total_amount) : 0;
 
                 invoiceData = {
-
                     pnr: fb.pnr || 'PENDING',
                     bookingId: booking.booking_id,
                     bookingDate: new Date(booking.created_at || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -1449,8 +1504,9 @@ exports.downloadInvoice = async (req, res, next) => {
         const docDefinition = getInvoiceDocDefinition(invoiceData);
         const pdfBuffer = await pdfService.generatePDF(docDefinition);
 
+        const disposition = (req.query.download === 'true' || req.query.download === '1') ? 'attachment' : 'inline';
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=FlyAnyTrip_Invoice_${invoiceData.pnr}.pdf`);
+        res.setHeader('Content-Disposition', `${disposition}; filename=FlyAnyTrip_Invoice_${invoiceData.pnr || 'TICKET'}.pdf`);
         return res.send(pdfBuffer);
 
     } catch (error) {
@@ -1488,8 +1544,31 @@ exports.sendInvoiceEmail = async (req, res) => {
             bookingId,
         } = req.body;
 
-        if (!toEmail) {
-            return res.status(400).json({ success: false, message: 'toEmail is required' });
+        let recipientEmail = toEmail;
+        let recipientName = passengerName;
+
+        if (!recipientEmail && (bookingId || pnr)) {
+            try {
+                const targetId = bookingId || pnr;
+                const dbBooking = await prisma.bookings.findFirst({
+                    where: { OR: [{ booking_id: targetId }, { flight_bookings: { pnr: targetId } }] },
+                    include: {
+                        users: { select: { email: true, first_name: true, last_name: true } }
+                    }
+                });
+                if (dbBooking?.users?.email) {
+                    recipientEmail = dbBooking.users.email;
+                    if (!recipientName && dbBooking.users.first_name) {
+                        recipientName = `${dbBooking.users.first_name} ${dbBooking.users.last_name || ''}`.trim();
+                    }
+                }
+            } catch (fetchErr) {
+                console.warn('Could not auto-resolve user email from DB for invoice email:', fetchErr.message);
+            }
+        }
+
+        if (!recipientEmail) {
+            return res.status(400).json({ success: false, message: 'toEmail is required and could not be resolved from booking.' });
         }
 
         const fmt = (amt) => `₹${Number(amt || 0).toLocaleString('en-IN')}`;
@@ -1546,10 +1625,8 @@ exports.sendInvoiceEmail = async (req, res) => {
 
           <!-- Success Banner -->
           <tr>
-            <td style="background:linear-gradient(135deg,#00a651,#007a3d);padding:28px 32px;text-align:center;">
-              <div style="width:56px;height:56px;background:rgba(255,255,255,0.2);border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;">
-                <span style="font-size:28px;">✅</span>
-              </div>
+            <td align="center" style="background:#00a651;padding:28px 32px;text-align:center;">
+              <div style="font-size:32px;margin-bottom:6px;">✅</div>
               <h2 style="margin:0;color:#fff;font-size:22px;font-weight:700;">Booking Confirmed!</h2>
               <p style="margin:8px 0 0;color:rgba(255,255,255,0.9);font-size:14px;">Your e-ticket and invoice are ready</p>
             </td>
@@ -1588,10 +1665,8 @@ exports.sendInvoiceEmail = async (req, res) => {
                       <p style="margin:4px 0 0;font-size:12px;color:#888;">${departureTime || ''}</p>
                     </td>
                     <td align="center" width="24%">
-                      <div style="border-top:2px dashed #ccc;position:relative;margin:0 8px;">
-                        <span style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#f8f9fb;padding:0 6px;font-size:18px;">✈</span>
-                      </div>
-                      <p style="margin:16px 0 0;font-size:11px;color:#aaa;text-align:center;">${cabinClass || 'Economy'}</p>
+                      <p style="margin:0;font-size:20px;color:#00a651;">✈</p>
+                      <p style="margin:4px 0 0;font-size:11px;color:#aaa;text-align:center;">${cabinClass || 'Economy'}</p>
                     </td>
                     <td align="center" width="38%">
                       <p style="margin:0;font-size:26px;font-weight:800;color:#1a1a1a;">${(destination || 'BOM').toUpperCase()}</p>
@@ -1678,7 +1753,7 @@ exports.sendInvoiceEmail = async (req, res) => {
           <tr>
             <td style="background:#f8f9fb;padding:24px 32px;border-top:1px solid #eee;text-align:center;">
               <p style="margin:0 0 6px;font-size:13px;color:#999;">For support, contact us at <a href="mailto:support@flyanytrip.com" style="color:#E21C26;font-weight:600;">support@flyanytrip.com</a></p>
-              <p style="margin:0;font-size:13px;color:#bbb;">Have a wonderful journey! 🙏<br/><strong style="color:#E21C26;">Team FlyAnyTrip</strong></p>
+              <p style="margin:0;font-size:13px;color:#bbb;">Have a wonderful journey! 🙏<br/><strong style="color:#E21C26;">Team AnyTrip India Pvt Ltd</strong><br/><span style="font-size:11px;color:#777;">Designed & Engineered with ❤️ by <strong>Milan Pandavadra (Lead Full Stack Engineer)</strong></span></p>
             </td>
           </tr>
 
@@ -1776,12 +1851,12 @@ exports.sendInvoiceEmail = async (req, res) => {
             },
         });
 
-        const textSummary = `Dear ${passengerName || 'Traveler'},\n\nYour flight booking is CONFIRMED!\nPNR / Booking Reference: ${pnr || bookingId || 'CONFIRMED'}\nRoute: ${(origin || 'DEL').toUpperCase()} to ${(destination || 'BOM').toUpperCase()}\nDeparture Date: ${departureDate || 'N/A'}\nAirline: ${airline || ''} ${flightNumber || ''}\nTotal Paid: ₹${Number(totalPaid || 0).toLocaleString('en-IN')}\n\nPlease find your e-ticket and tax invoice attached to this email.\n\nThank you for choosing FlyAnyTrip!\nTeam FlyAnyTrip`;
+        const textSummary = `Dear ${recipientName || passengerName || 'Traveler'},\n\nYour flight booking is CONFIRMED!\nPNR / Booking Reference: ${pnr || bookingId || 'CONFIRMED'}\nRoute: ${(origin || 'DEL').toUpperCase()} to ${(destination || 'BOM').toUpperCase()}\nDeparture Date: ${departureDate || 'N/A'}\nAirline: ${airline || ''} ${flightNumber || ''}\nTotal Paid: ₹${Number(totalPaid || 0).toLocaleString('en-IN')}\n\nPlease find your e-ticket and tax invoice attached to this email.\n\nThank you for choosing FlyAnyTrip!\nTeam FlyAnyTrip`;
 
         const mailOptions = {
             from: `"FlyAnyTrip" <${process.env.SMTP_USER}>`,
             replyTo: `support@flyanytrip.com`,
-            to: toEmail,
+            to: recipientEmail,
             subject: `✈ Booking Confirmed! PNR: ${pnr || bookingId} | ${(origin || 'DEL').toUpperCase()} → ${(destination || 'BOM').toUpperCase()} | ${departureDate || ''}`,
             text: textSummary,
             html,
@@ -1795,8 +1870,8 @@ exports.sendInvoiceEmail = async (req, res) => {
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log('📧 Booking confirmation email with PDF invoice sent via SMTP:', info.messageId, '→', toEmail);
-        return res.status(200).json({ success: true, messageId: info.messageId, sentTo: toEmail, hasPdfAttachment: !!pdfBuffer });
+        console.log('📧 Booking confirmation email with PDF invoice sent via SMTP:', info.messageId, '→', recipientEmail);
+        return res.status(200).json({ success: true, messageId: info.messageId, sentTo: recipientEmail, hasPdfAttachment: !!pdfBuffer });
 
     } catch (error) {
         console.error('Send Invoice Email Error:', error);
@@ -1846,13 +1921,14 @@ exports.releaseHoldBooking = async (req, res, next) => {
         const responseData = rawRes.responseData?.Response || rawRes.Response || rawRes;
         const adivahaOrderId = responseData.OrderId || responseData.order_id || responseData.BookingId || flightBooking.provider_order_id;
 
-        // Call Adivaha API to release hold booking
+        const customerIp = getValidPublicIp(req);
         let adivahaRes;
         try {
             adivahaRes = await AdivahaFlightService.releaseHoldBooking({
                 BookingId: providerBookingId,
-                order_id: adivahaOrderId,
-                Source: 4
+                order_id: (adivahaOrderId && adivahaOrderId !== 'UNKNOWN') ? adivahaOrderId : providerBookingId,
+                Source: 4,
+                customerIp: customerIp
             });
         } catch (apiErr) {
             console.error('Adivaha releaseHoldBooking call failed:', apiErr);

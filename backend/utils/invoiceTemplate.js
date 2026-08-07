@@ -663,7 +663,7 @@ const getInvoiceDocDefinition = (bookingData = {}) => {
             // Footer Page 2
             {
                 columns: [
-                    { text: 'AnyTrip India Pvt Ltd  |  24/7 Helpline: +91-800-123-4567  |  Support: support@flyanytrip.com', fontSize: 7.5, color: '#64748B' },
+                    { text: 'AnyTrip India Pvt Ltd  |  Lead Architect: Milan Pandavadra (Full Stack Engineer)  |  Support: support@flyanytrip.com', fontSize: 7.5, color: '#64748B' },
                     { text: 'Page 2 of 2', fontSize: 7.5, color: '#64748B', alignment: 'right' }
                 ],
                 margin: [0, 10, 0, 0]

@@ -264,7 +264,15 @@ const getFareRule = async (req, res, next) => {
       });
     }
 
-    const endUserIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const getValidPublicIp = (req) => {
+      const raw = (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : null) || req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress;
+      if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1' || raw === 'localhost') {
+        return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
+      }
+      return raw;
+    };
+
+    const endUserIp = getValidPublicIp(req);
 
     const cacheKey = generateCacheKey('fare_rule', { traceId, resultIndex });
     const cached = apiCache.get(cacheKey);
@@ -273,8 +281,8 @@ const getFareRule = async (req, res, next) => {
     }
 
     const rules = await adivahaService.getFareRule({ 
-      TraceId: traceId, 
-      ResultIndex: resultIndex,
+      TraceId: String(traceId).trim().replace(/ /g, '+'), 
+      ResultIndex: String(resultIndex).trim().replace(/ /g, '+'),
       EndUserIp: endUserIp
     });
     apiCache.set(cacheKey, rules);
@@ -295,7 +303,15 @@ const getFareQuote = async (req, res, next) => {
       });
     }
 
-    const endUserIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const getValidPublicIp = (req) => {
+      const raw = (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : null) || req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress;
+      if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1' || raw === 'localhost') {
+        return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
+      }
+      return raw;
+    };
+
+    const endUserIp = getValidPublicIp(req);
 
     const cacheKey = generateCacheKey('fare_quote', { traceId, resultIndex });
     const cached = apiCache.get(cacheKey);
@@ -304,8 +320,8 @@ const getFareQuote = async (req, res, next) => {
     }
 
     const quote = await adivahaService.getFlightFareQuote({ 
-      TraceId: traceId, 
-      ResultIndex: resultIndex,
+      TraceId: String(traceId).trim().replace(/ /g, '+'), 
+      ResultIndex: String(resultIndex).trim().replace(/ /g, '+'),
       EndUserIp: endUserIp
     });
     apiCache.set(cacheKey, quote);
@@ -326,7 +342,15 @@ const getFlightSSR = async (req, res, next) => {
       });
     }
 
-    const endUserIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    const getValidPublicIp = (req) => {
+      const raw = (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : null) || req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress;
+      if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1' || raw === 'localhost') {
+        return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
+      }
+      return raw;
+    };
+
+    const endUserIp = getValidPublicIp(req);
 
     const cacheKey = generateCacheKey('flight_ssr', { traceId, resultIndex });
     const cached = apiCache.get(cacheKey);
@@ -336,8 +360,8 @@ const getFlightSSR = async (req, res, next) => {
 
     // Fetch live Adivaha API SSR directly (SeatDynamic, Baggage, MealDynamic)
     const ssr = await adivahaService.getFlightSSR({ 
-      TraceId: traceId, 
-      ResultIndex: resultIndex,
+      TraceId: String(traceId).trim().replace(/ /g, '+'), 
+      ResultIndex: String(resultIndex).trim().replace(/ /g, '+'),
       EndUserIp: endUserIp
     });
 
