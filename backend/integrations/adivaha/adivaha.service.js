@@ -84,7 +84,7 @@ adivahaClient.interceptors.response.use(
           if (typeof originalRequest.data === 'string') {
             try {
               originalRequest.data = JSON.parse(originalRequest.data);
-            } catch (e) {}
+            } catch (e) { }
           }
           // Retry the original request
           return adivahaClient(originalRequest);
@@ -94,6 +94,7 @@ adivahaClient.interceptors.response.use(
         }
       }
     }
+
 
     return response;
   },
@@ -278,7 +279,7 @@ class AdivahaFlightService {
                 layoverStr = `${numStops} Stops at ${layoverDetails.join(', ')}`;
               }
             }
-  
+
             return {
               id: f.ResultIndex || `adivaha_${prefix}_${index}`,
               traceId: traceId,
@@ -535,8 +536,7 @@ class AdivahaFlightService {
         From_IATACODE: cleanIata(origin),
         To_IATACODE: cleanIata(destination),
         departure_date: formatDate(departureDate),
-        flights_category: categoryMap[cabinClass] || "Economy",
-        Flights_category: categoryMap[cabinClass] || "Economy"
+        flights_category: categoryMap[cabinClass] || "Economy"
       };
 
       const response = await adivahaClient.post(`/?action=GetCalendarFare`, apiPayload);
