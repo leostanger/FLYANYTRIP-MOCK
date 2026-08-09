@@ -445,7 +445,7 @@ exports.confirmBooking = async (req, res, next) => {
 
                     const adivahaPayload = {
                         isLCC: isLccNormalized,
-                        TraceId: traceId,
+                        TraceId: cleanTraceId,
                         ResultIndex: activeResultIndex,
                         Passengers: loopPassengers,
                         ContactDetails: normalizedContactDetails,
@@ -595,7 +595,7 @@ exports.confirmBooking = async (req, res, next) => {
                                 PNR: loopPnr,
                                 BookingId: loopProviderBookingId,
                                 order_id: `ORD-${Date.now()}-${i}`,
-                                TraceId: traceId,
+                                TraceId: cleanTraceId,
                                 isoneway,
                                 isDomestic,
                                 IsDomesticReturn,
