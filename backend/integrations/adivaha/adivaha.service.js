@@ -622,9 +622,9 @@ class AdivahaFlightService {
         ContactDetails
       };
 
-      if (bookingPayload.IsPriceChangeAccepted !== undefined) {
-        apiPayload.IsPriceChangeAccepted = bookingPayload.IsPriceChangeAccepted;
-      }
+      apiPayload.IsPriceChangeAccepted = bookingPayload.IsPriceChangeAccepted !== undefined ? bookingPayload.IsPriceChangeAccepted : true;
+      apiPayload.isPriceChangeAccepted = true;
+      apiPayload.IsPriceChanged = true;
 
       const reqHeaders = customerIp ? { headers: { 'Customer-IP': customerIp } } : {};
       const response = await adivahaClient.post(`/?action=${isLCC ? 'ticketForLcc' : 'flightBook'}`, apiPayload, reqHeaders);
