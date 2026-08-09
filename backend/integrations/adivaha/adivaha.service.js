@@ -66,6 +66,12 @@ adivahaClient.interceptors.response.use(
           console.log(`Adivaha Token/Auth issue detected (${errCode || errMsg}). Generating fresh token...`);
           // Call createToken to refresh the internal token state at Adivaha
           await axios.get(`${ADIVAHA_BASE_URL}/?action=createToken`, {
+            params: {
+              action: 'createToken',
+              PID: process.env.ADIVAHA_PID,
+              auth: process.env.ADIVAHA_API_KEY,
+              AuthKey: process.env.ADIVAHA_API_KEY
+            },
             headers: {
               'Accept': 'application/json',
               'Accept-Encoding': 'gzip',
