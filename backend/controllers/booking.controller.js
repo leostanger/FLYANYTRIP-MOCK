@@ -419,7 +419,7 @@ exports.confirmBooking = async (req, res, next) => {
                             ...p,
                             FirstName: (p.FirstName || "").trim(),
                             LastName: (p.LastName || "").trim(),
-                            Title: p.Title,
+                            Title: p.Title || "Mr",
                             Fare: fareObj
                         };
                     });
