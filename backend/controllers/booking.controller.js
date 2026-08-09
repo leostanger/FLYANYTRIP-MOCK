@@ -264,6 +264,8 @@ exports.confirmBooking = async (req, res, next) => {
             if (!cleanFirstName) cleanFirstName = paxType === 2 ? "Aarav" : (paxType === 3 ? "Baby" : "Rahul");
             if (!cleanLastName) cleanLastName = "Sharma";
 
+            const cleanNationality = (nationality === "INDIAN" || nationality === "INDIA") ? "IN" : (nationality.length > 2 ? nationality.slice(0, 2).toUpperCase() : nationality.toUpperCase());
+
             const passengerObj = {
                 Title: title,
                 FirstName: cleanFirstName,
@@ -276,8 +278,10 @@ exports.confirmBooking = async (req, res, next) => {
                 City: city,
                 CountryCode: countryCode.toUpperCase(),
                 CountryName: countryName,
-                Nationality: nationality.toUpperCase(),
+                Nationality: cleanNationality,
                 ContactNo: contactNo,
+                CellNo: contactNo,
+                CellCountryCode: countryCode.toUpperCase() === "IN" ? "+91" : "+91",
                 Email: email,
                 IsLeadPax: isLeadPax,
                 Fare: passengerFare
