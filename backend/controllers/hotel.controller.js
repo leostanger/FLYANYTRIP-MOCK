@@ -275,6 +275,26 @@ exports.bookHotel = async (req, res, next) => {
           },
         });
 
+        // Payment record
+        if (tx.payments) {
+          try {
+            await tx.payments.create({
+              data: {
+                booking_id: bookingId,
+                payment_intent_id: paymentData?.razorpay_payment_id || `PAY-${Date.now()}`,
+                order_id: String(paymentData?.razorpay_order_id || orderId),
+                amount: chargablePrice || 0,
+                currency: currency || 'INR',
+                status: 'SUCCESS',
+                payment_method: paymentData?.isDemo ? 'DEMO' : 'RAZORPAY',
+                is_demo: !!paymentData?.isDemo
+              }
+            });
+          } catch (payErr) {
+            console.warn('Non-critical: hotel payments record creation notice:', payErr.message);
+          }
+        }
+
         return { booking, hotelBooking };
       });
     } catch (dbError) {

@@ -2,10 +2,12 @@ const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const shortid = require('shortid');
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || 'secret_placeholder',
-});
+const getRazorpayInstance = () => {
+  return new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_RH0I6LBnmc0Ziz',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || '7ReMSO0JONPPyRe0WkuylqTl',
+  });
+};
 
 /**
  * Create a new Razorpay order
@@ -26,6 +28,7 @@ const createOrder = async (req, res, next) => {
       payment_capture: 1, // Auto capture
     };
 
+    const razorpay = getRazorpayInstance();
     const order = await razorpay.orders.create(options);
 
     return res.status(200).json({

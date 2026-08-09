@@ -6,7 +6,16 @@ const NodeCache = require('node-cache');
 const apiCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
 const generateCacheKey = (prefix, params) => {
-  return `${prefix}_${Buffer.from(JSON.stringify(params)).toString('base64')}`;
+  const sortObject = (obj) => {
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(sortObject);
+    return Object.keys(obj).sort().reduce((acc, key) => {
+      acc[key] = sortObject(obj[key]);
+      return acc;
+    }, {});
+  };
+  const normalizedParams = sortObject(params);
+  return `${prefix}_${Buffer.from(JSON.stringify(normalizedParams)).toString('base64')}`;
 };
 
 module.exports = {

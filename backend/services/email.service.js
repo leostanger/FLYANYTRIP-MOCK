@@ -2,10 +2,14 @@ const nodemailer = require('nodemailer');
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransport({
+    this._transporter = null;
+  }
+
+  getTransporter() {
+    return nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-      port: process.env.SMTP_PORT || 465,
-      secure: true, // true for 465, false for other ports
+      port: Number(process.env.SMTP_PORT) || 465,
+      secure: process.env.SMTP_SECURE === 'false' ? false : true,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -58,7 +62,7 @@ class EmailService {
         ] : [],
       };
 
-      const info = await this.transporter.sendMail(mailOptions);
+      const info = await this.getTransporter().sendMail(mailOptions);
       console.log('Invoice email sent successfully. Message ID:', info.messageId);
       return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -113,7 +117,7 @@ class EmailService {
         ] : [],
       };
 
-      const info = await this.transporter.sendMail(mailOptions);
+      const info = await this.getTransporter().sendMail(mailOptions);
       console.log('Hotel invoice email sent successfully. Message ID:', info.messageId);
       return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -344,7 +348,7 @@ class EmailService {
         html,
       };
 
-      const info = await this.transporter.sendMail(mailOptions);
+      const info = await this.getTransporter().sendMail(mailOptions);
       console.log('Cancellation email sent successfully. Message ID:', info.messageId);
       return { success: true, messageId: info.messageId };
     } catch (error) {

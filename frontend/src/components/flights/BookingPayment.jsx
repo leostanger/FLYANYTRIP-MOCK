@@ -141,6 +141,7 @@ export default function BookingPayment({ flight, selectedFare, passengers = [], 
           handler: async function (response) {
             console.log("Razorpay Payment Success:", response);
             if (onPay) await onPay({ ...response, amount: finalPayAmount, couponApplied, couponCode, couponDiscount });
+            setLoading(false);
           },
           modal: {
             ondismiss: function() {
@@ -152,10 +153,10 @@ export default function BookingPayment({ flight, selectedFare, passengers = [], 
         rzp.open();
       } else {
         alert("Razorpay payment gateway loading... Please try again.");
+        setLoading(false);
       }
     } catch (err) {
       console.error("Razorpay initiation error:", err.message);
-    } finally {
       setLoading(false);
     }
   };

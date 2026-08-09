@@ -94,6 +94,8 @@ exports.confirmBooking = async (req, res, next) => {
         const normalizedContactDetails = {
             Email: contactDetails?.Email || contactDetails?.email || "guest@flyanytrip.com",
             ContactNo: contactDetails?.ContactNo || contactDetails?.contactNo || contactDetails?.mobile || contactDetails?.phone || "9999999999",
+            CellNo: contactDetails?.CellNo || contactDetails?.ContactNo || contactDetails?.contactNo || contactDetails?.mobile || contactDetails?.phone || "9999999999",
+            CellCountryCode: "+91",
             AddressLine1: contactDetails?.AddressLine1 || contactDetails?.addressLine1 || "Street Address",
             AddressLine2: contactDetails?.AddressLine2 || contactDetails?.addressLine2 || "",
             City: contactDetails?.City || contactDetails?.city || "Delhi",
@@ -135,18 +137,30 @@ exports.confirmBooking = async (req, res, next) => {
 
         const IsDomesticReturn = (isDomestic === "Yes" && isoneway === "No") ? "Yes" : "No";
 
-        // Utility to parse date strings (e.g. DD/MM/YYYY or DD-MM-YYYY) into YYYY-MM-DD
+        // Utility to parse date strings (e.g. DD/MM/YYYY or YYYY-MM-DD) into YYYY-MM-DD
         const parseDateString = (dateStr) => {
             if (!dateStr || typeof dateStr !== 'string') return dateStr;
-            const parts = dateStr.split(/[\/\-]/);
-            if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
-                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            const clean = dateStr.split("T")[0];
+            const parts = clean.split(/[\/\-]/);
+            if (parts.length === 3) {
+                // If DD/MM/YYYY or DD-MM-YYYY format
+                if (parts[0].length === 2 && parts[2].length === 4) {
+                    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                }
+                // If YYYY/MM/DD or YYYY-MM-DD format
+                if (parts[0].length === 4 && parts[2].length === 2) {
+                    return `${parts[0]}-${parts[1]}-${parts[2]}`;
+                }
             }
-            return dateStr;
+            return clean;
         };
 
         // Enrich passengers data for Adivaha API schema validation
-        const departureDateStr = flightSnapshot?.raw?.Segments?.[0]?.[0]?.Origin?.DepTime || new Date().toISOString();
+        const departureDateStr = flightSnapshot?.raw?.Segments?.[0]?.[0]?.Origin?.DepTime ||
+                                 flightSnapshot?.raw?.DepartureTime ||
+                                 flightSnapshot?.date ||
+                                 flightSnapshot?.departureDate ||
+                                 new Date().toISOString();
         const departureDate = new Date(departureDateStr);
         const fareDetails = flightSnapshot?.Fare || flightSnapshot?.raw?.Fare || {};
 
@@ -304,7 +318,7 @@ exports.confirmBooking = async (req, res, next) => {
                 passengerObj.PassportExpiry = passportExpiryStr || "2030-01-01T00:00:00";
             }
 
-            if (p.Seat && p.Seat.Code && p.Seat.Code !== "Auto-assigned" && p.SeatDynamic && p.SeatDynamic.length > 0) {
+            if (p.Seat && p.Seat.Code && p.Seat.Code !== "Auto-assigned") {
                 passengerObj.Seat = p.Seat;
             }
 
@@ -771,8 +785,27 @@ exports.confirmBooking = async (req, res, next) => {
                     await tx.flight_booking_passengers.createMany({ data: paxRows });
                 }
 
-                // D. Save travellers profile records OUTSIDE the transaction (non-critical)
-                // Moved outside to avoid transaction timeout — see createMany call below
+                // D. Save payment audit record
+                if (tx.payments) {
+                    try {
+                        const finalPaymentAmt = totalAmount || (flightSnapshot?.price ? parseFloat(String(flightSnapshot.price).replace(/,/g, '')) : 0);
+                        await tx.payments.create({
+                            data: {
+                                booking_id: booking.booking_id,
+                                payment_intent_id: paymentData?.razorpay_payment_id || `PAY-${Date.now()}`,
+                                order_id: paymentData?.razorpay_order_id || `ORD-${Date.now()}`,
+                                amount: finalPaymentAmt,
+                                currency: 'INR',
+                                status: 'SUCCESS',
+                                payment_method: paymentData?.isDemo ? 'DEMO' : 'RAZORPAY',
+                                is_demo: !!paymentData?.isDemo
+                            }
+                        });
+                    } catch (payErr) {
+                        console.warn('Non-critical: payments record creation notice:', payErr.message);
+                    }
+                }
+
                 return { booking, flightBooking };
             }, {
                 maxWait: 15000, // Wait up to 15 seconds to acquire database connection from pool

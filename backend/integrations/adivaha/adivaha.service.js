@@ -696,17 +696,12 @@ class AdivahaFlightService {
    */
   static async getFlightSSR(payload) {
     try {
-      const { TraceId, ResultIndex, EndUserIp } = payload;
-      const cleanTraceId = String(TraceId || '').trim().replace(/ /g, '+');
-      const cleanResultIndex = String(ResultIndex || '').trim().replace(/ /g, '+');
-      const apiPayload = {
-        action: "flightSSR",
-        ResultIndex: cleanResultIndex,
-        TraceId: cleanTraceId,
-        EndUserIp: getValidPublicIp(EndUserIp)
-      };
-      const response = await adivahaClient.post('/', apiPayload);
-      return response.data;
+      const { TraceId, ResultIndex, EndUserIp, customerIp } = payload;
+      return await this.getSSRDetails({
+        TraceId,
+        ResultIndex,
+        customerIp: customerIp || EndUserIp
+      });
     } catch (error) {
       console.error('Adivaha getFlightSSR Error:', error.response?.data || error.message);
       throw error;

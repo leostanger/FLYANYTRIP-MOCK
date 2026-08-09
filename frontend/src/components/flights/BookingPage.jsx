@@ -279,12 +279,17 @@ export default function BookingPage() {
               Email: p.email || contactDetails.email || "guest@flyanytrip.com",
               PassportNo: p.passportNo || undefined,
               PassportExpiry: p.passportExpiry || undefined,
-              Nationality: (p.nationality || "IN").substring(0, 2).toUpperCase(),
+              Nationality: (p.nationality === "Indian" || p.nationality === "India" || p.nationality === "INDIAN") ? "IN" : (p.nationality || "IN").substring(0, 2).toUpperCase(),
               Seat: pSeat ? { Code: pSeat } : undefined
             };
 
           }),
-          contactDetails,
+          contactDetails: {
+            ...contactDetails,
+            Email: contactDetails.email || contactDetails.Email || "guest@flyanytrip.com",
+            ContactNo: contactDetails.mobile || contactDetails.ContactNo || contactDetails.phone || "9999999999",
+            CellNo: contactDetails.mobile || contactDetails.ContactNo || contactDetails.phone || "9999999999"
+          },
           ssrSelections: {
             seats: passengers.map((p, idx) => {
               const pSeatObj = addonsData.paxSeatsMap?.[idx];
