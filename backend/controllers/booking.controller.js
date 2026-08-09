@@ -1,8 +1,8 @@
 // Ensure BigInt can be serialized to JSON safely
 if (!BigInt.prototype.toJSON) {
-  BigInt.prototype.toJSON = function () {
-    return this.toString();
-  };
+    BigInt.prototype.toJSON = function () {
+        return this.toString();
+    };
 }
 
 const AdivahaFlightService = require('../integrations/adivaha/adivaha.service');
@@ -20,9 +20,9 @@ const getValidPublicIp = (req, fallback = null) => {
         ? (req.headers['x-forwarded-for']
             ? String(req.headers['x-forwarded-for']).split(',')[0].trim()
             : null)
-            || req.headers['x-real-ip']
-            || req.ip
-            || req.socket?.remoteAddress
+        || req.headers['x-real-ip']
+        || req.ip
+        || req.socket?.remoteAddress
         : null);
     if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1' || raw === 'localhost') {
         return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
@@ -156,11 +156,7 @@ exports.confirmBooking = async (req, res, next) => {
         };
 
         // Enrich passengers data for Adivaha API schema validation
-        const departureDateStr = flightSnapshot?.raw?.Segments?.[0]?.[0]?.Origin?.DepTime ||
-                                 flightSnapshot?.raw?.DepartureTime ||
-                                 flightSnapshot?.date ||
-                                 flightSnapshot?.departureDate ||
-                                 new Date().toISOString();
+        const departureDateStr = flightSnapshot?.raw?.Segments?.[0]?.[0]?.Origin?.DepTime || new Date().toISOString();
         const departureDate = new Date(departureDateStr);
         const fareDetails = flightSnapshot?.Fare || flightSnapshot?.raw?.Fare || {};
 
@@ -318,7 +314,7 @@ exports.confirmBooking = async (req, res, next) => {
                 passengerObj.PassportExpiry = passportExpiryStr || "2030-01-01T00:00:00";
             }
 
-            if (p.Seat && p.Seat.Code && p.Seat.Code !== "Auto-assigned") {
+            if (p.Seat && p.Seat.Code && p.Seat.Code !== "Auto-assigned" && p.SeatDynamic && p.SeatDynamic.length > 0) {
                 passengerObj.Seat = p.Seat;
             }
 
@@ -380,8 +376,8 @@ exports.confirmBooking = async (req, res, next) => {
 
                             const quoteResponseData = quoteRes?.responseData?.Response || quoteRes?.Response || quoteRes;
                             const resultsObj = Array.isArray(quoteResponseData?.Results) ? quoteResponseData.Results[0] : quoteResponseData?.Results;
-                            
-                            const updatedResultIndex = 
+
+                            const updatedResultIndex =
                                 quoteRes?.ResultIndex ||
                                 quoteRes?.responseData?.ResultIndex ||
                                 quoteRes?.responseData?.Response?.ResultIndex ||
@@ -470,17 +466,17 @@ exports.confirmBooking = async (req, res, next) => {
                             error: adivahaError.response?.data || adivahaError.message || adivahaError
                         });
                     }
-                    
+
                     adivahaResList.push(adivahaRes);
                     if (!finalAdivahaRes) finalAdivahaRes = adivahaRes;
 
                     // Extract PNR and Booking ID from Adivaha Response
                     let responseData = adivahaRes?.responseData?.Response || adivahaRes?.Response || adivahaRes;
-                    const deepErrorMessage = adivahaRes?.responseData?.Response?.Error?.ErrorMessage 
-                                            || adivahaRes?.Response?.Error?.ErrorMessage 
-                                            || adivahaRes?.Error?.ErrorMessage 
-                                            || responseData?.Error?.ErrorMessage
-                                            || adivahaRes?.status_message;
+                    const deepErrorMessage = adivahaRes?.responseData?.Response?.Error?.ErrorMessage
+                        || adivahaRes?.Response?.Error?.ErrorMessage
+                        || adivahaRes?.Error?.ErrorMessage
+                        || responseData?.Error?.ErrorMessage
+                        || adivahaRes?.status_message;
 
                     let loopPnr = responseData?.PNR || responseData?.Response?.PNR || (responseData?.BookingId || responseData?.Response?.BookingId ? String(responseData.BookingId || responseData.Response.BookingId) : null);
 
@@ -710,7 +706,7 @@ exports.confirmBooking = async (req, res, next) => {
                             return match ? match[0].toUpperCase() : 'BOM';
                         })(),
                         departure_date: (() => {
-                            const rawDepTime = 
+                            const rawDepTime =
                                 flightSnapshot?.raw?.Segments?.[0]?.[0]?.Origin?.DepTime ||
                                 flightSnapshot?.raw?.Segments?.[0]?.Origin?.DepTime ||
                                 flightSnapshot?.departureTime ||
@@ -785,27 +781,8 @@ exports.confirmBooking = async (req, res, next) => {
                     await tx.flight_booking_passengers.createMany({ data: paxRows });
                 }
 
-                // D. Save payment audit record
-                if (tx.payments) {
-                    try {
-                        const finalPaymentAmt = totalAmount || (flightSnapshot?.price ? parseFloat(String(flightSnapshot.price).replace(/,/g, '')) : 0);
-                        await tx.payments.create({
-                            data: {
-                                booking_id: booking.booking_id,
-                                payment_intent_id: paymentData?.razorpay_payment_id || `PAY-${Date.now()}`,
-                                order_id: paymentData?.razorpay_order_id || `ORD-${Date.now()}`,
-                                amount: finalPaymentAmt,
-                                currency: 'INR',
-                                status: 'SUCCESS',
-                                payment_method: paymentData?.isDemo ? 'DEMO' : 'RAZORPAY',
-                                is_demo: !!paymentData?.isDemo
-                            }
-                        });
-                    } catch (payErr) {
-                        console.warn('Non-critical: payments record creation notice:', payErr.message);
-                    }
-                }
-
+                // D. Save travellers profile records OUTSIDE the transaction (non-critical)
+                // Moved outside to avoid transaction timeout — see createMany call below
                 return { booking, flightBooking };
             }, {
                 maxWait: 15000, // Wait up to 15 seconds to acquire database connection from pool
