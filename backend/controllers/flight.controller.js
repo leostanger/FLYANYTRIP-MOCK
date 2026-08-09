@@ -316,6 +316,17 @@ const getFareQuote = async (req, res, next) => {
       ResultIndex: String(resultIndex).trim().replace(/ /g, '+'),
       EndUserIp: endUserIp
     });
+
+    const quoteResData = quote?.responseData?.Response || quote?.Response || quote;
+    if (quoteResData?.Error?.ErrorCode !== 0 && quoteResData?.Error?.ErrorCode !== undefined) {
+      console.warn('Adivaha getFareQuote returned GDS error:', quoteResData.Error.ErrorMessage);
+      return res.status(400).json({
+        success: false,
+        message: quoteResData.Error.ErrorMessage || 'Flight fare quote revalidation failed',
+        error: quoteResData.Error
+      });
+    }
+
     apiCache.set(cacheKey, quote);
 
     return res.status(200).json({ success: true, source: 'api', data: quote });
@@ -348,6 +359,16 @@ const getFlightSSR = async (req, res, next) => {
       ResultIndex: String(resultIndex).trim().replace(/ /g, '+'),
       EndUserIp: endUserIp
     });
+
+    const ssrResData = ssr?.responseData?.Response || ssr?.Response || ssr;
+    if (ssrResData?.Error?.ErrorCode !== 0 && ssrResData?.Error?.ErrorCode !== undefined) {
+      console.warn('Adivaha getFlightSSR returned GDS error:', ssrResData.Error.ErrorMessage);
+      return res.status(400).json({
+        success: false,
+        message: ssrResData.Error.ErrorMessage || 'Failed to fetch SSR details from Adivaha',
+        error: ssrResData.Error
+      });
+    }
 
     if (!ssr) {
       throw new Error('Failed to fetch SSR details from Adivaha');
