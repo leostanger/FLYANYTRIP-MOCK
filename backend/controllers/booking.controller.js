@@ -599,7 +599,7 @@ exports.confirmBooking = async (req, res, next) => {
                                 PNR: loopPnr,
                                 BookingId: loopProviderBookingId,
                                 order_id: `ORD-${Date.now()}-${i}`,
-                                TraceId: cleanTraceId,
+                                TraceId: traceId,
                                 isoneway,
                                 isDomestic,
                                 IsDomesticReturn,
