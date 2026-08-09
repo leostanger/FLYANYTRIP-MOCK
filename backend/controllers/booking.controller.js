@@ -89,6 +89,16 @@ exports.confirmBooking = async (req, res, next) => {
         const traceId = String(rawTraceId || '').trim().replace(/ /g, '+');
         const resultIndex = String(rawResultIndex || '').trim().replace(/ /g, '+');
 
+        if (!traceId || traceId === 'null' || traceId === 'undefined') {
+            return res.status(400).json({ success: false, message: 'Invalid or missing flight TraceId. Please search flights again.' });
+        }
+        if (!resultIndex || resultIndex === 'null' || resultIndex === 'undefined') {
+            return res.status(400).json({ success: false, message: 'Invalid or missing flight ResultIndex. Please re-select the flight.' });
+        }
+        if (!Array.isArray(passengers) || passengers.length === 0) {
+            return res.status(400).json({ success: false, message: 'At least one passenger detail is required to issue a ticket.' });
+        }
+
         const isLccNormalized = isLCC === true || isLCC === 'true' || isLCC === 1 || isLCC === '1';
 
         const normalizedContactDetails = {
