@@ -535,7 +535,8 @@ class AdivahaFlightService {
         From_IATACODE: cleanIata(origin),
         To_IATACODE: cleanIata(destination),
         departure_date: formatDate(departureDate),
-        flights_category: categoryMap[cabinClass] || "Economy"
+        flights_category: categoryMap[cabinClass] || "Economy",
+        Flights_category: categoryMap[cabinClass] || "Economy"
       };
 
       const response = await adivahaClient.post(`/?action=GetCalendarFare`, apiPayload);
