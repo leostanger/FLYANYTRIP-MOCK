@@ -630,6 +630,8 @@ class AdivahaFlightService {
       apiPayload.isPriceChangeAccepted = "true";
       apiPayload.IsPriceChanged = "true";
       apiPayload.isPriceChanged = "true";
+      apiPayload.isPriceChangeAccepted1 = 1;
+      apiPayload.isPriceChangeAcceptedFlag = 1;
 
       const reqHeaders = customerIp ? { headers: { 'Customer-IP': customerIp } } : {};
       const response = await adivahaClient.post(`/?action=${isLCC ? 'ticketForLcc' : 'flightBook'}`, apiPayload, reqHeaders);
