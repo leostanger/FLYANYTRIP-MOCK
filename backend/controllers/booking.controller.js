@@ -452,6 +452,7 @@ exports.confirmBooking = async (req, res, next) => {
                         isoneway,
                         isDomestic,
                         IsDomesticReturn,
+                        IsPriceChangeAccepted: true,
                         customerIp: customerIp
                     };
 
