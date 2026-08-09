@@ -339,12 +339,6 @@ const getFlightSSR = async (req, res, next) => {
 
     const endUserIp = getValidPublicIp(req);
 
-    const cacheKey = generateCacheKey('flight_ssr', { traceId, resultIndex });
-    const cached = apiCache.get(cacheKey);
-    if (cached) {
-      return res.status(200).json({ success: true, source: 'cache', data: cached });
-    }
-
     // Fetch live Adivaha API SSR directly (SeatDynamic, Baggage, MealDynamic)
     const ssr = await adivahaService.getFlightSSR({ 
       TraceId: String(traceId).trim().replace(/ /g, '+'), 
@@ -365,7 +359,6 @@ const getFlightSSR = async (req, res, next) => {
     if (!ssr) {
       throw new Error('Failed to fetch SSR details from Adivaha');
     }
-    apiCache.set(cacheKey, ssr);
 
     return res.status(200).json({ success: true, source: 'api', data: ssr });
   } catch (error) {
