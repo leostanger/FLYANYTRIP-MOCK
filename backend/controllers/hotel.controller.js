@@ -185,11 +185,18 @@ exports.bookHotel = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'holder and rooms are required' });
     }
 
+    const normalizedHolder = {
+      name: holder.name || holder.firstName || holder.first_name || 'Guest',
+      surname: holder.surname || holder.lastName || holder.last_name || 'User',
+      email: holder.email || 'guest@flyanytrip.com',
+      phone: String(holder.phone || holder.mobile || holder.contactNo || '9999999999').replace(/[^\d]/g, '').slice(-10)
+    };
+
     // --- Call Adivaha Book Hotel API ---
     let adivahaRes;
     try {
       adivahaRes = await AdivahaHotelService.bookHotel({
-        holder,
+        holder: normalizedHolder,
         rooms,
         isTolerance,
         chargablePrice,
