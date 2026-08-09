@@ -676,13 +676,20 @@ class AdivahaFlightService {
         TraceId: cleanTraceId,
         IsLCC: "0",
         isoneway: isoneway || "Yes",
+        IsOneway: isoneway || "Yes",
         isDomestic: isDomestic || "Yes",
+        IsDomestic: isDomestic || "Yes",
         IsDomesticReturn: IsDomesticReturn || "No",
         EndUserIp: validCustomerIp,
+        endUserIp: validCustomerIp,
+        customerIp: validCustomerIp,
         Passengers
       };
 
-      apiPayload.IsPriceChangeAccepted = IsPriceChangeAccepted !== undefined ? IsPriceChangeAccepted : true;
+      apiPayload.IsPriceChangeAccepted = "true";
+      apiPayload.isPriceChangeAccepted = "true";
+      apiPayload.IsPriceChanged = "true";
+      apiPayload.isPriceChanged = "true";
 
       const reqHeaders = validCustomerIp ? { headers: { 'Customer-IP': validCustomerIp } } : {};
       const response = await adivahaClient.post('/?action=ticket', apiPayload, reqHeaders);
