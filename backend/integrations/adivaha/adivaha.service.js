@@ -615,9 +615,13 @@ class AdivahaFlightService {
         ResultIndex: cleanResultIndex,
         IsLCC: isLCC ? "1" : "0",
         isoneway: isoneway || "Yes",
+        IsOneway: isoneway || "Yes",
         isDomestic: isDomestic || "Yes",
+        IsDomestic: isDomestic || "Yes",
         IsDomesticReturn: IsDomesticReturn || "No",
         EndUserIp: customerIp,
+        endUserIp: customerIp,
+        customerIp: customerIp,
         Passengers,
         ContactDetails
       };
