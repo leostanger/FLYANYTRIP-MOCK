@@ -694,6 +694,8 @@ class AdivahaFlightService {
         EndUserIp: validCustomerIp,
         endUserIp: validCustomerIp,
         customerIp: validCustomerIp,
+        ClientIP: validCustomerIp,
+        clientIP: validCustomerIp,
         Passengers
       };
 
