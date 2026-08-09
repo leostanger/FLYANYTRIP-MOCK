@@ -305,12 +305,6 @@ const getFareQuote = async (req, res, next) => {
 
     const endUserIp = getValidPublicIp(req);
 
-    const cacheKey = generateCacheKey('fare_quote', { traceId, resultIndex });
-    const cached = apiCache.get(cacheKey);
-    if (cached) {
-      return res.status(200).json({ success: true, source: 'cache', data: cached });
-    }
-
     const quote = await adivahaService.getFlightFareQuote({ 
       TraceId: String(traceId).trim().replace(/ /g, '+'), 
       ResultIndex: String(resultIndex).trim().replace(/ /g, '+'),
@@ -326,8 +320,6 @@ const getFareQuote = async (req, res, next) => {
         error: quoteResData.Error
       });
     }
-
-    apiCache.set(cacheKey, quote);
 
     return res.status(200).json({ success: true, source: 'api', data: quote });
   } catch (error) {
