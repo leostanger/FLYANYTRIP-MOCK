@@ -629,6 +629,8 @@ class AdivahaFlightService {
         EndUserIp: customerIp,
         endUserIp: customerIp,
         customerIp: customerIp,
+        ClientIP: customerIp,
+        clientIP: customerIp,
         Passengers,
         ContactDetails
       };
