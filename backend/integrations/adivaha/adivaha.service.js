@@ -677,9 +677,7 @@ class AdivahaFlightService {
         Passengers
       };
 
-      if (IsPriceChangeAccepted !== undefined) {
-        apiPayload.IsPriceChangeAccepted = IsPriceChangeAccepted;
-      }
+      apiPayload.IsPriceChangeAccepted = IsPriceChangeAccepted !== undefined ? IsPriceChangeAccepted : true;
 
       const reqHeaders = validCustomerIp ? { headers: { 'Customer-IP': validCustomerIp } } : {};
       const response = await adivahaClient.post('/?action=ticket', apiPayload, reqHeaders);
