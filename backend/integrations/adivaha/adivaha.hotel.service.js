@@ -27,6 +27,61 @@ hotelClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Interceptor to handle Adivaha internal Token Management for Hotel API
+hotelClient.interceptors.response.use(
+  async (response) => {
+    const errorObj = response.data?.responseData?.Response?.Error ||
+      response.data?.Response?.Error ||
+      response.data?.Error;
+
+    const errCode = errorObj?.ErrorCode;
+    const errMsg = String(errorObj?.ErrorMessage || response.data?.status_message || '').toLowerCase();
+    const isAuthError = (errCode === 6 || errCode === 401 || errMsg.includes('authentication failed') || errMsg.includes('invalid token'));
+
+    if (errorObj && isAuthError) {
+      const originalRequest = response.config;
+
+      if (!originalRequest._retry) {
+        originalRequest._retry = true;
+
+        try {
+          console.log(`Adivaha Hotel Token/Auth issue detected (${errCode || errMsg}). Generating fresh token...`);
+          await axios.get(`${ADIVAHA_HOTEL_BASE_URL}?action=createToken`, {
+            params: {
+              action: 'createToken',
+              PID: process.env.ADIVAHA_PID,
+              auth: process.env.ADIVAHA_API_KEY,
+              AuthKey: process.env.ADIVAHA_API_KEY
+            },
+            headers: {
+              'Accept': 'application/json',
+              'Accept-Encoding': 'gzip',
+              'PID': process.env.ADIVAHA_PID,
+              'x-api-key': process.env.ADIVAHA_API_KEY
+            }
+          });
+
+          console.log('Hotel Token refreshed successfully. Retrying original request...');
+          if (typeof originalRequest.data === 'string') {
+            try {
+              originalRequest.data = JSON.parse(originalRequest.data);
+            } catch (e) {}
+          }
+          return hotelClient(originalRequest);
+        } catch (refreshError) {
+          console.error('Failed to refresh Adivaha Hotel token:', refreshError.message);
+          return Promise.reject(refreshError);
+        }
+      }
+    }
+
+    return response;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 class AdivahaHotelService {
   /**
    * Step 1 — Get Locations (Autocomplete)
