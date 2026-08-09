@@ -1,6 +1,14 @@
 const adivahaService = require('../integrations/adivaha/adivaha.service');
 const { apiCache, generateCacheKey } = require('../utils/cache');
 
+const getValidPublicIp = (req) => {
+  const raw = (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : null) || req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress;
+  if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1' || raw === 'localhost') {
+    return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
+  }
+  return raw;
+};
+
 
 
 const searchFlights = async (req, res, next) => {
@@ -264,14 +272,6 @@ const getFareRule = async (req, res, next) => {
       });
     }
 
-    const getValidPublicIp = (req) => {
-      const raw = (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : null) || req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress;
-      if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1' || raw === 'localhost') {
-        return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
-      }
-      return raw;
-    };
-
     const endUserIp = getValidPublicIp(req);
 
     const cacheKey = generateCacheKey('fare_rule', { traceId, resultIndex });
@@ -303,14 +303,6 @@ const getFareQuote = async (req, res, next) => {
       });
     }
 
-    const getValidPublicIp = (req) => {
-      const raw = (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : null) || req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress;
-      if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1' || raw === 'localhost') {
-        return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
-      }
-      return raw;
-    };
-
     const endUserIp = getValidPublicIp(req);
 
     const cacheKey = generateCacheKey('fare_quote', { traceId, resultIndex });
@@ -341,14 +333,6 @@ const getFlightSSR = async (req, res, next) => {
         message: 'Missing required parameters: traceId or resultIndex',
       });
     }
-
-    const getValidPublicIp = (req) => {
-      const raw = (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : null) || req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress;
-      if (!raw || raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1' || raw === 'localhost') {
-        return process.env.DEFAULT_CUSTOMER_IP || '103.24.56.78';
-      }
-      return raw;
-    };
 
     const endUserIp = getValidPublicIp(req);
 
